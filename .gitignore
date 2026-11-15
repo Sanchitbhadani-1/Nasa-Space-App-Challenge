@@ -1,0 +1,11 @@
+# big pipeline files (rebuild with run_pipeline.sh)
+work/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# os
+.DS_Store
