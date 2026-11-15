@@ -24,7 +24,7 @@ import urllib.request
 from datetime import date, timedelta
 from shapely import contains_xy
 from shapely.geometry import shape
-from pipeline.common import WORK, DATA
+from pipeline.common import WORK, DATA, api_boxes
 
 # The FIRMS Area API link, filled in with the key, source, box, number of days and start day
 API = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/{key}/{src}/{bbox}/{days}/{day}"
@@ -62,7 +62,9 @@ def main(start, end, countries):
     d0, d1 = date.fromisoformat(start), date.fromisoformat(end)
     for c in countries:
         geom = borders[c]
-        bbox = ",".join(f"{v:.2f}" for v in geom.bounds)
+
+        # One box, or two for a country that crosses 180 degrees (geom.bounds would cover the whole planet's width)
+        boxes = [",".join(f"{v:.2f}" for v in b) for b in api_boxes(geom)]
         for prefix, srcs in SOURCES.items():
             rows, header = {}, None
             day = d0
@@ -71,14 +73,20 @@ def main(start, end, countries):
             while day <= d1:
                 n = min(10, (d1 - day).days + 1)
                 for src in srcs:
-                    text = get(API.format(key=key, src=src, bbox=bbox, days=n, day=day.isoformat()))
-                    r = list(csv.reader(io.StringIO(text)))
+                    got = False
+                    for bbox in boxes:
+                        text = get(API.format(key=key, src=src, bbox=bbox, days=n, day=day.isoformat()))
+                        r = list(csv.reader(io.StringIO(text)))
 
-                    # Keep the first source that sends rows. Keying rows by their contents drops repeats
-                    if len(r) > 1:
-                        header = r[0]
-                        for row in r[1:]:
-                            rows[tuple(row)] = row
+                        # Keying rows by their contents drops repeats
+                        if len(r) > 1:
+                            header = r[0]
+                            got = True
+                            for row in r[1:]:
+                                rows[tuple(row)] = row
+
+                    # Keep the first source that sends rows
+                    if got:
                         break
                 day += timedelta(days=n)
                 time.sleep(0.5)
