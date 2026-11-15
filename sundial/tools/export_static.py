@@ -1,8 +1,9 @@
 """Export the SUNDIAL team's precomputed record to static JSON so the site runs on GitHub Pages (no server).
 
-Run from the team repo (Nasa_Space_App_Test) with its venv active:
-    python /path/to/sundial/tools/export_static.py /path/to/sundial/data
-Everything written here is computed by the team's pipeline from NASA FIRMS; nothing is invented.
+Run from the repo root with the venv active, after run_pipeline.sh has built data/:
+    python sundial/tools/export_static.py sundial/data
+It reads the pipeline outputs in data/ through the backend module (backend/main.py), which is not in this repo yet.
+Everything written here is computed by the pipeline from NASA FIRMS; nothing is invented.
 """
 import json, sys, shutil, math
 from pathlib import Path
@@ -10,7 +11,11 @@ import numpy as np
 import polars as pl
 
 sys.path.insert(0, str(Path.cwd()))
-from backend import main as B  # noqa: E402
+try:
+    from backend import main as B  # noqa: E402
+except ImportError:
+    sys.exit("export_static.py needs backend/main.py (series, scoreboard, calibration, globe grid), which is not in this repo yet. "
+             "Run it from the repo that has backend/, from its root. The site's data/ files are already committed, so the site runs without this step.")
 
 out = Path(sys.argv[1]); (out / "series").mkdir(parents=True, exist_ok=True)
 
