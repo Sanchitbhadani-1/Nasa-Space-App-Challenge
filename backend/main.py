@@ -388,6 +388,11 @@ def download_hotspots(area: str, start: int = Query(..., description="YYYYMM"), 
 # Send one of the allowed map files from data/
 @app.get("/data/{name}")
 def data_file(name: str):
+    # The website ships its own data files (frontend/data/meta.json, countries.geojson, ...). Those are for all
+    # 182 countries and have a different layout from the pipeline's files of the same name, so they win
+    site = ROOT / "frontend" / "data" / name
+    if not name.startswith(".") and site.is_file():
+        return FileResponse(site)
     if name not in ("countries.geojson", "states.geojson", "land.geojson", "basemap_land.geojson", "basemap_borders.geojson"):
         raise HTTPException(404)
     return FileResponse(DATA / name, media_type="application/geo+json")
