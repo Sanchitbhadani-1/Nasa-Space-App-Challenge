@@ -92,7 +92,7 @@
     const out = $('#hz-out'); out.hidden = true; say('#hz-prog', `Reading ${file.name}…`);
     try {
       let cid = $('#hz-country').value, opts = { dropLow: $('#hz-low').checked };
-      if (cid) opts.bbox = DATA.byId[cid].bbox;
+      if (cid) opts.inside = DATA.inBox(cid);   // a box that survives the antimeridian (Russia, Fiji, NZ, US)
       const st = await FIRMS.parseFile(file, opts, (p) => say('#hz-prog', `Reading ${file.name}… ${Math.round(p * 100)}%`));
       if (st.error) return say('#hz-prog', st.error, true);
       if (!st.kept && st.outside) return say('#hz-prog', `None of the ${nf(st.outside)} detections in this file fall inside ${DATA.byId[cid].name}. Pick the right country, or leave it on "Detect from the file".`, true);
@@ -173,10 +173,10 @@
     const cid = $('#wk-country').value, key = $('#wk-key').value.trim();
     if (!cid) return say('#wk-prog', 'Pick a country first (the fetch asks FIRMS for that country’s bounding box).', true);
     if (!key) return say('#wk-prog', 'Enter your FIRMS MAP_KEY first.', true);
-    const b = DATA.byId[cid].bbox, area = b.map((v) => v.toFixed(3)).join(','), texts = [];
+    const areas = DATA.areas(cid).map((b) => b.map((v) => v.toFixed(3)).join(',')), texts = [];   // two boxes for countries that straddle 180°; the plain bbox of Russia is the whole northern hemisphere
     say('#wk-prog', 'Asking FIRMS for the last 7 days…');
     try {
-      for (const src of ['VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT', 'VIIRS_SNPP_NRT']) {
+      for (const src of ['VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT', 'VIIRS_SNPP_NRT']) for (const area of areas) {
         const r = await fetch(`https://firms.modaps.eosdis.nasa.gov/api/area/csv/${encodeURIComponent(key)}/${src}/${area}/7`);
         if (!r.ok) continue; const t = await r.text(); if (/^latitude,/i.test(t)) texts.push(t);
       }
@@ -188,7 +188,7 @@
     const out = $('#wk-out'); out.hidden = true;
     try {
       let cid = $('#wk-country').value; const opts = {};
-      if (src.clip) { cid = src.clip; opts.inside = insideOf(cid); } else if (cid) opts.bbox = DATA.byId[cid].bbox;
+      if (src.clip) { cid = src.clip; opts.inside = insideOf(cid); } else if (cid) opts.inside = DATA.inBox(cid);
       let st;
       if (src.file) { say('#wk-prog', `Reading ${src.file.name}…`); st = await FIRMS.parseFile(src.file, opts, (p) => say('#wk-prog', `Reading ${src.file.name}… ${Math.round(p * 100)}%`)); }
       else { const p = FIRMS.create(opts); p.push(src.text); st = p.end(); }

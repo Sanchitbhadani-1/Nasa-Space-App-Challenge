@@ -301,8 +301,8 @@
     sh.rh = RH && DATA.diurnal ? RH.measure(DATA.diurnal[id]) : null;   // this country's measured daily curve
     Object.assign(sh, { id, s, c, idx: opts.idx != null ? opts.idx : s.months.length - 1, hour: hourAt(c.centroid[0]), mode: 'camera', div: 0.5, playing: false });
     st.sheetOpen = true; document.body.classList.add('sheet-open');
-    const b = c.bbox, lat = (b[1] + b[3]) / 2, lon = (b[0] + b[2]) / 2;
-    const span = Math.max(b[3] - b[1], (b[2] - b[0]) * Math.cos(lat * Math.PI / 180));
+    const { lat, lon, span } = DATA.placeGeom(id);   // not the plain bbox: Russia, Fiji, NZ and the US straddle 180°
+    sh.lon = lon;
     G.setSelected(id); G.setFlag(null); flagTex(id).then((t) => { if (sh.id === id) G.setFlag(t); });
     $('#switch').value = id;
     G.focus({ layout: 'sheet', lon, lat, span: span * 1.1, glass: 1, ring: 0 });
@@ -342,7 +342,7 @@
 
   function setHour(h, fromUser) {
     sh.hour = ((h % 24) + 24) % 24;
-    G.lockLocalHour(sh.hour, sh.c.bbox[0] / 2 + sh.c.bbox[2] / 2);
+    G.lockLocalHour(sh.hour, sh.lon);
     $$('.hr', cardsEl).forEach((b) => b.classList.toggle('on', +b.dataset.h === Math.floor(sh.hour)));
     const tod = $('#tod'); if (tod) { tod.value = sh.hour.toFixed(2); $('#tod-out').textContent = fmt12(sh.hour); }
     if (fromUser) stopDay();
