@@ -208,7 +208,7 @@
       <p>Drop a NASA FIRMS MODIS CSV for one country. SUNDIAL turns the Terra and Aqua counts into VIIRS-equivalent monthly counts, undoing the clock slide, and compares the result with the published record. It runs in your browser; the file is not uploaded.</p>
       <div class="tool-row">
         <label>Country<select id="hz-country"><option value="">Detect from the file</option></select></label>
-        <label class="chk"><input type="checkbox" id="hz-low"> Drop low-confidence detections</label>
+        <label class="chk"><input type="checkbox" id="hz-low" checked> Drop low-confidence detections</label>
       </div>
       <label class="drop" id="hz-drop" for="hz-file"><input type="file" id="hz-file" accept=".csv,text/csv,text/plain"><b>Drop a MODIS CSV here</b><span>or click to choose one</span><small id="hz-prog" aria-live="polite"></small></label>
       <div class="tool-out" id="hz-out" hidden></div>
