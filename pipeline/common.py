@@ -2,6 +2,8 @@
 # FOLDERS, GRID SIZE, SATELLITE CODES, KEY DATES AND WHERE NASA'S FILES LIVE
 
 from pathlib import Path
+import numpy as np
+from shapely import get_coordinates
 
 
 # FOLDERS
@@ -54,3 +56,32 @@ SOURCES = {"modis": 2000, "viirs-snpp": 2012, "viirs-jpss1": 2018}
 
 # Start of every yearly country file link
 FIRMS_BASE = "https://firms.modaps.eosdis.nasa.gov/data/country"
+
+
+# BOXES THAT CROSS THE 180 DEGREE LINE
+
+# Boxes for a country as (west, south, east, north), split where the country crosses 180 degrees
+# A shape's own .bounds is wrong for Russia, Fiji, New Zealand and the US: they have land on both sides of 180,
+# so .bounds says west -180 and east 180, a box as wide as the whole planet. Asking FIRMS for that box
+# downloads the whole northern hemisphere. Here the western longitudes are moved up by 360 to see
+# whether the country is narrower that way. If it is, the box is cut into an east part and a west part.
+def api_boxes(geom):
+    xy = get_coordinates(geom)
+    lon, lat = xy[:, 0], xy[:, 1]
+    south, north = float(lat.min()), float(lat.max())
+    plain = (float(lon.min()), south, float(lon.max()), north)
+
+    # Longitudes with the western half moved to 180..360, so a country across 180 stays in one piece
+    moved = np.where(lon < 0, lon + 360, lon)
+    west, east = float(moved.min()), float(moved.max())
+
+    # Keep the plain box unless the moved one is clearly narrower (the 1 degree margin ignores rounding noise)
+    if east - west >= plain[2] - plain[0] - 1:
+        return [plain]
+
+    # The whole country is east of 180 after the move, so it fits in one box once moved back
+    if west >= 180:
+        return [(west - 360, south, east - 360, north)]
+
+    # Otherwise one box up to 180 and one from -180
+    return [(west, south, 180.0, north), (-180.0, south, east - 360, north)]
