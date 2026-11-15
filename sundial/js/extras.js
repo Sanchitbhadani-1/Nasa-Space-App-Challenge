@@ -210,11 +210,13 @@
     const idx = new Map(s.months.map((m, i) => [m, i])), dates = []; for (let t = 0; t < W; t++) dates.push(new Date(d0.getTime() + t * 864e5));
     // this window in the record's units: Suomi NPP counts as is, NOAA-20 times its factor. With several satellites, average them (they see the same fires).
     let total = 0; const per = {}; use.forEach((k) => { per[k] = 0; });
-    dates.forEach((d) => { const key = d.toISOString().slice(0, 10), row = st.daily[key] || {}; let v = 0; use.forEach((k) => { const x = (row[k] || 0) * factor[k]; per[k] += row[k] || 0; v += x; }); total += v / use.length; });
-    const lastY = Math.max(...s.months.map((m) => Math.floor(m / 100))), expected = [];
+    // average over the satellites that were reporting that day, not all of them: when Suomi NPP stops mid-window, the days after it are NOAA-20 alone and must not be halved
+    dates.forEach((d) => { const key = d.toISOString().slice(0, 10), row = st.daily[key] || {}; let v = 0, act = 0; use.forEach((k) => { const r = st.satRange[k]; if (r && key >= r[0] && key <= r[1]) act++; const x = (row[k] || 0) * factor[k]; per[k] += row[k] || 0; v += x; }); total += v / Math.max(1, act); });
+    const lastY = Math.max(...s.months.map((m) => Math.floor(m / 100))), expected = [], y0 = dates[0].getUTCFullYear();
     for (let y = 2001; y <= 2025; y++) {
       let e = 0, ok = true;
-      dates.forEach((d) => { const mo = d.getUTCMonth() + 1; let dom = d.getUTCDate(); if (mo === 2 && dom === 29) dom = 28; const r = ratePerDay(s, idx, y, mo, dom); if (r == null) ok = false; else e += r; });
+      /* a 28 Dec to 3 Jan window compares its January days with the NEXT year's January */
+      dates.forEach((d) => { const mo = d.getUTCMonth() + 1; let dom = d.getUTCDate(); if (mo === 2 && dom === 29) dom = 28; const r = ratePerDay(s, idx, y + (d.getUTCFullYear() - y0), mo, dom); if (r == null) ok = false; else e += r; });
       if (ok) expected.push({ y, v: e });
     }
     if (expected.length < 10) return say('#wk-prog', 'Not enough history for these dates in this country.', true);
@@ -231,7 +233,7 @@
     out.hidden = false;
     // bars: expected per year + this window
     const el = $('#wk-chart'), Wd = Math.max(300, el.clientWidth || 640), H = 190, mg = { l: 44, r: 10, t: 12, b: 22 };
-    const data = expected.map((q) => ({ y: q.y, v: q.v })).concat([{ y: 2026, v: total, now: true }]);
+    const data = expected.map((q) => ({ y: q.y, v: q.v })).concat([{ y: 'now', v: total, now: true }]);   // keyed 'now', not a year: a window in 2025 would otherwise collide with the 2025 bar
     const x = D3.scaleBand().domain(data.map((q) => q.y)).range([mg.l, Wd - mg.r]).padding(0.18), y = D3.scaleLinear().domain([0, D3.max(data, (q) => q.v) * 1.08 || 1]).range([H - mg.b, mg.t]).nice();
     const svg = D3.select(el).html('').append('svg').attr('viewBox', `0 0 ${Wd} ${H}`).attr('class', 'xc').attr('role', 'img').attr('aria-label', `Fire detections for the same dates in each year, with this window highlighted`);
     svg.append('g').selectAll('line').data(y.ticks(4)).join('line').attr('class', 'gl').attr('x1', mg.l).attr('x2', Wd - mg.r).attr('y1', (d) => y(d)).attr('y2', (d) => y(d));

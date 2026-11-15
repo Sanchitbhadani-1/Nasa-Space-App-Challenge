@@ -15,7 +15,7 @@
 
   function create(opts) {
     opts = opts || {};
-    const st = { monthly: {}, daily: {}, rows: 0, kept: 0, outside: 0, lowConf: 0, unknown: {}, minDate: null, maxDate: null, samples: [], error: null, sats: {} };
+    const st = { monthly: {}, daily: {}, rows: 0, kept: 0, outside: 0, lowConf: 0, unknown: {}, minDate: null, maxDate: null, samples: [], error: null, sats: {}, satRange: {}, nonVeg: 0 };
     let head = null, tail = '', idx = null;
 
     function setHeader(line) {
@@ -48,6 +48,7 @@
       const d = st.daily[date] || (st.daily[date] = {}); d[sat] = (d[sat] || 0) + 1;
       st.sats[sat] = (st.sats[sat] || 0) + 1; st.kept++;
       if (st.minDate === null || date < st.minDate) st.minDate = date; if (st.maxDate === null || date > st.maxDate) st.maxDate = date;
+      const sr = st.satRange[sat] || (st.satRange[sat] = [date, date]); if (date < sr[0]) sr[0] = date; if (date > sr[1]) sr[1] = date;   // first and last day each satellite reports
     }
 
     function consume(text, final) {
