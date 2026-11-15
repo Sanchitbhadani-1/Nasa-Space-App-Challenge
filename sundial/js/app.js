@@ -8,7 +8,7 @@
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const MONF = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-  const fmt = (n) => n == null ? '–' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'k' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : Math.round(n) + '';
+  const fmt = (n) => n == null ? '–' : n >= 999500 ? (n / 1e6).toFixed(1) + 'M' : n >= 9950 ? Math.round(n / 1e3) + 'k' : n >= 999.5 ? (n / 1e3).toFixed(1) + 'k' : Math.round(n) + '';   // thresholds sit at the rounding edges, so 999,600 reads 1.0M, not 1000k
   const TIER = { measured: ['Measured from this country\'s own data', 'Enough detections here to calculate the correction directly.'], blended: ['Partly borrowed calibration', 'Fewer detections here, so the correction is blended with the pooled value from similar countries.'], borrowed: ['Borrowed calibration', 'Very few detections here, so the correction uses the pooled value from other countries. Treat the details with care.'] };
   const p0 = (v) => (v == null ? 'n/a' : v.toFixed(0) + '%');
   const ymLabel = (ym) => `${MON[ym % 100 - 1]} ${Math.floor(ym / 100)}`;
@@ -395,7 +395,7 @@
       const v = s.months.map((m, i) => (Math.floor(m / 100) === y ? s.harm[i] : null)).filter((x) => x != null);
       if (!v.length) return '';
       const lo = Math.min(...v), hi = Math.max(...v), mean = v.reduce((a, b) => a + b, 0) / v.length;
-      return `<button type="button" class="yr" data-y="${y}" aria-label="${y}: monthly range ${fmt(lo)} to ${fmt(hi)}"><span class="y">${y}</span><span class="rb"><i style="left:${(lo / mx * 100).toFixed(1)}%;width:${Math.max(1.5, (hi - lo) / mx * 100).toFixed(1)}%"></i><u style="left:${(mean / mx * 100).toFixed(1)}%"></u></span><span class="tot">${fmt(s.summary.yearly[y])}</span></button>`;
+      return `<button type="button" class="yr" data-y="${y}" aria-label="${y}: monthly range ${fmt(lo)} to ${fmt(hi)}"><span class="y">${y}</span><span class="rb"><i style="left:${(lo / mx * 100).toFixed(1)}%;width:${Math.max(1.5, (hi - lo) / mx * 100).toFixed(1)}%"></i><u style="left:${(mean / mx * 100).toFixed(1)}%"></u></span><span class="tot">${fmt(s.summary.yearly[y] != null ? s.summary.yearly[y] : v.reduce((a, b) => a + b, 0))}</span></button>`;   // a few series (Falkland Islands) lack a 2025 entry in the summary
     }).join('');
     const sc = DATA.score[sh.id] || {};
     const gap = sc['V2_terra_drift.gap_closed_pct'], worse = gap != null && gap <= 0;
