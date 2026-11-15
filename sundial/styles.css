@@ -442,3 +442,12 @@ html:has(body.loading), html:has(body.sheet-open) { overflow: hidden; }
 .xc .medl { stroke: #1c1510; stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.7; }
 /* time readout keeps its place next to the label on narrow screens */
 .tod-top { gap: 0.8rem; } .tod-out { white-space: nowrap; flex: none; }
+
+/* ---------- phone fixes ---------- */
+/* the pinned drift card scrolls inside itself on phones; it used to run 55px under the dock, hiding the year slider */
+@media (max-width: 860px) {
+  .card.sticky { max-height: calc(58svh - 7.5rem); }
+}
+/* "Use it" wrapped onto two lines in the dock at 375px */
+.dock a span { white-space: nowrap; }
+@media (max-width: 420px) { .dock a { padding-inline: 0.75rem; } }
