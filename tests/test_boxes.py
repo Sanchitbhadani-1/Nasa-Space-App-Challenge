@@ -8,7 +8,7 @@ from pipeline.common import ROOT, api_boxes
 
 # Every country border the website draws (182 of them, including Russia, Fiji and New Zealand), by id
 FEATURES = {f["properties"]["id"]: f
-            for f in json.loads((ROOT / "sundial" / "data" / "countries.geojson").read_text())["features"]}
+            for f in json.loads((ROOT / "frontend" / "data" / "countries.geojson").read_text())["features"]}
 BORDERS = {k: shape(f["geometry"]) for k, f in FEATURES.items()}
 
 
