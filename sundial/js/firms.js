@@ -23,7 +23,7 @@
       const ix = {}; cols.forEach((c, i) => { ix[c] = i; });
       const miss = NEED.filter((n) => ix[n] == null);
       if (miss.length) { st.error = 'This does not look like a FIRMS CSV: missing column ' + miss.join(', ') + '.'; return false; }
-      idx = { lat: ix.latitude, lon: ix.longitude, date: ix.acq_date, time: ix.acq_time, sat: ix.satellite, conf: ix.confidence, dn: ix.daynight };
+      idx = { lat: ix.latitude, lon: ix.longitude, date: ix.acq_date, time: ix.acq_time, sat: ix.satellite, conf: ix.confidence, dn: ix.daynight, type: ix.type };
       head = cols; return true;
     }
 
@@ -35,6 +35,7 @@
       if (opts.inside && !opts.inside(lon, lat)) { st.outside++; return; }
       const raw = (f[idx.sat] || '').trim().toLowerCase().replace(/^"|"$/g, ''), sat = SAT[raw];
       if (!sat) { st.unknown[raw] = (st.unknown[raw] || 0) + 1; return; }
+      if (idx.type != null) { const ty = (f[idx.type] || '').trim(); if (ty !== '' && +ty !== 0) { st.nonVeg++; return; } }   // the published record keeps vegetation fires only (type 0), as the pipeline does
       if (opts.dropLow && idx.conf != null) { const c = (f[idx.conf] || '').trim().toLowerCase(); if (c === 'l' || c === 'low' || (c !== '' && +c === +c && +c < 30)) { st.lowConf++; return; } }
       const date = (f[idx.date] || '').trim(); if (date.length < 10) return;
       let hh = 12, mm = 0;
