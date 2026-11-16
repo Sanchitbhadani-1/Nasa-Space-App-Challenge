@@ -641,7 +641,7 @@ body:not(.loading) #title { transition: opacity 0.35s; }
 .hint::after { content: ""; position: absolute; left: var(--tail, 22px); bottom: -9px; width: 18px; height: 18px; background: var(--paper); transform: translateX(-50%) rotate(45deg); border-radius: 0 0 4px 0; }
 .hint::before { content: ""; position: absolute; left: 0.7rem; top: -5px; width: 10px; height: 10px; border-radius: 50%; background: var(--ember); box-shadow: 0 0 0 4px rgba(255, 106, 26, 0.25); }
 
-/* ---------- the title screen is pinned while the title fades and the bubble comes in ---------- */
-.hero { height: calc(114vh + var(--S, 0px)); height: calc(114svh + var(--S, 0px)); }
-.hero-line, .scroll-cue { translate: 0 var(--pin, 0px); }
-.chin { translate: 0 calc(var(--pin, 0px) - var(--S, 0px)); }
+/* ---------- the title screen holds still for the first stretch of scrolling (pure CSS sticky, so it never lags the scroll) ---------- */
+.hero { height: 169vh; height: 169svh; overflow: clip; }
+.hero-pin { position: sticky; top: 0; width: 100%; height: 100vh; height: 100svh; }
+body:not(.loading) #title { transition: opacity 0.8s; }
