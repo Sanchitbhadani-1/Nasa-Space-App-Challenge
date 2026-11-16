@@ -12,7 +12,7 @@
   const grat = d3.geoGraticule10();
 
   const T = { utc: 11, month: 9.2, playing: !reduce, utcTarget: null, monthTarget: null };
-  const V = { lon: -45, lat: 8, R: 300, cx: 0, cy: 0, glass: 0, ring: 0.3, band: 0, ctry: 1, labels: 0, light: 0, trend: 0, vis: 1, flat: 0 };   // vis: 0 when the globe has slid away; flat: 0 globe .. 1 flat world map
+  const V = { lon: -45, lat: 8, R: 300, cx: 0, cy: 0, glass: 0, ring: 0.3, band: 0, ctry: 1, labels: 0, light: 0, trend: 0, vis: 1, flat: 0, intro: 0 };   // vis: 0 when the globe has slid away; flat: 0 globe .. 1 flat world map
   let trendMap = null;   // id -> 'up' | 'down' | 'flat': paints whole countries by the direction of their fire trend
   const TREND_COL = { up: 'rgba(255,106,26,.62)', down: 'rgba(125,178,255,.62)', flat: 'rgba(243,234,217,.2)' };
   let F = { layout: 'hero', lon: -45, lat: 8, auto: true, ring: 0.3 };
@@ -24,6 +24,7 @@
   const hdiff = (a, b) => ((((a - b + 12) % 24) + 24) % 24) - 12;
 
   function resize() {
+    if (W && window.innerWidth === W && Math.abs(window.innerHeight - H) < 140 && matchMedia('(hover: none)').matches) return;   // toolbar show/hide on a phone
     DPR = Math.min(window.devicePixelRatio || 1, 1.25);
     W = window.innerWidth; H = window.innerHeight;
     cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
@@ -84,7 +85,7 @@
     fly = { s, lon0, t0: now, dur: 7000, end: 0 }; flyIdx++; flyWait = 0;
   }
   function updateFly(now) {
-    if (!fly && now > nextFly && !reduce && F.layout !== 'sheet' && V.glass < 0.3 && !dragging && !document.hidden) startFly(now);
+    if (!fly && now > nextFly && !reduce && F.layout === 'hero' && !dragging && !document.hidden) startFly(now);   // only on the title screen; inside a section nothing happens on a timer
     curFly = null; if (!fly) return;
     const u = (now - fly.t0) / fly.dur; let a = 1;
     if (u >= 1) { if (!fly.end) fly.end = now; a = 1 - (now - fly.end) / 1400; if (a <= 0) { fly = null; nextFly = now + 9000 + Math.random() * 6000; return; } }
@@ -157,7 +158,9 @@
     return null;
   }
 
-  let lastDraw = 0, lastGA = 1;
+  let lastDraw = 0, lastGA = 1, introT = null;
+  const introEase = (t) => 1 - Math.pow(1 - t, 3);
+  setTimeout(() => { if (introT == null) introT = performance.now(); }, 7000);   // never leave it hidden if the page forgets to say go
   function draw(now) {
     if (!running) return;
     if (document.hidden) { requestAnimationFrame(draw); return; }
@@ -178,11 +181,14 @@
     } else if (F.month != null) {
       let d = F.month - T.month; if (d > 6) d -= 12; if (d < -6) d += 12;
       T.month = 1 + ((T.month - 1 + d * ez(0.03) + 12) % 12);
-    } else if (T.playing) T.month = 1 + ((T.month - 1 + dt * (12 / 80)) % 12);
+    } else if (T.playing && (F.layout === 'hero' || F.layout === 'explore')) T.month = 1 + ((T.month - 1 + dt * (12 / 80)) % 12);
+    else { let d = 8.5 - T.month; if (d > 6) d -= 12; if (d < -6) d += 12; T.month = 1 + ((T.month - 1 + d * ez(0.03) + 12) % 12); }   // a scene that names no month settles on late summer instead of drifting through the year
 
     updateFly(now);
     // ease the camera
+    V.intro = introT == null ? 0 : introEase(Math.min(1, (now - introT) / 2800));
     const L = layout(F), e = inited ? ez(0.075) : 1;
+    L.R *= 0.68 + 0.32 * V.intro;
     V.R *= Math.pow(L.R / V.R, e);
     V.cx += (L.cx - V.cx) * e; V.cy += (L.cy - V.cy) * e;
     V.ring += ((F.ring || 0) - V.ring) * ez(0.06);
@@ -195,13 +201,13 @@
     V.vis += ((F.away ? 0 : 1) - V.vis) * ez(0.07);
     V.flat += (((F.form === 'flat' && flatReady()) ? 1 : 0) - V.flat) * ez(0.07);
     if (!dragging && now > userUntil) {
-      if (F.auto && !reduce) { autoLon += dt * 3.2; V.lon = wrap(autoLon); V.lat += (F.lat - V.lat) * ez(0.05); }
+      if (F.auto && !reduce) { autoLon += dt * (3.2 + 46 * (1 - V.intro) * (1 - V.intro)); V.lon = wrap(autoLon); V.lat += (F.lat - V.lat) * ez(0.05); }
       else { V.lon = wrap(V.lon + angDiff(F.lon, V.lon) * e); V.lat += (F.lat - V.lat) * e; autoLon = V.lon; }
     } else autoLon = V.lon;
     inited = true;
 
     // the globe fades out as it slides away or unfolds into the flat map; when it cannot be seen, do not paint it
-    const gA = V.vis * (1 - Math.min(1, V.flat * 1.5));
+    const gA = V.vis * V.intro * (1 - Math.min(1, V.flat * 1.5));
     if (Math.abs(gA - lastGA) > 0.004) { cv.style.opacity = gA.toFixed(3); lastGA = gA; }
     updateFlat();
     if (gA < 0.015) { requestAnimationFrame(draw); return; }
@@ -222,11 +228,12 @@
     }
     // ocean + land (turn translucent as we zoom, so the sky shows through)
     const o = ctx.createRadialGradient(V.cx - V.R * 0.3, V.cy - V.R * 0.35, V.R * 0.1, V.cx, V.cy, V.R);
-    o.addColorStop(0, `rgba(22,32,47,${0.06 + 0.94 * g1})`); o.addColorStop(1, `rgba(11,17,27,${0.06 + 0.94 * g1})`);
+    const mx = (a, b) => Math.round(a + (b - a) * V.light);   // on a paper page the globe is lifted so it does not read as a black hole
+    o.addColorStop(0, `rgba(${mx(22, 52)},${mx(32, 72)},${mx(47, 104)},${0.06 + 0.94 * g1})`); o.addColorStop(1, `rgba(${mx(11, 30)},${mx(17, 46)},${mx(27, 74)},${0.06 + 0.94 * g1})`);
     ctx.fillStyle = o; ctx.beginPath(); path({ type: 'Sphere' }); ctx.fill();
     ctx.strokeStyle = 'rgba(243,234,217,0.05)'; ctx.lineWidth = 0.6; ctx.beginPath(); path(grat); ctx.stroke();
     ctx.fillStyle = V.glass > 0.5 ? `rgba(14,20,34,${0.2 + 0.3 * g1})` : '#1c242f';
-    ctx.fillStyle = `rgba(${Math.round(28 - 10 * V.glass)},${Math.round(36 - 12 * V.glass)},${Math.round(47 - 6 * V.glass)},${0.34 + 0.66 * g1})`;
+    ctx.fillStyle = `rgba(${Math.round(mx(28, 62) - 10 * V.glass)},${Math.round(mx(36, 78) - 12 * V.glass)},${Math.round(mx(47, 102) - 6 * V.glass)},${0.34 + 0.66 * g1})`;
     ctx.beginPath(); path(land); ctx.fill();
     ctx.strokeStyle = `rgba(243,234,217,${0.09 + 0.3 * V.glass})`; ctx.lineWidth = 0.6 + V.glass; if (V.ctry < 0.7 || !window.DATA.features) { ctx.beginPath(); path(borders); ctx.stroke(); }   // country outlines below already draw the borders
 
@@ -234,7 +241,7 @@
     if (g1 > 0.02) {
       const [sLon, sLat] = sunPos();
       const night = d3.geoCircle().center([wrap(sLon + 180), -sLat]);
-      [[96, 0.2], [90, 0.26], [82, 0.2]].forEach(([r, a]) => { ctx.fillStyle = `rgba(4,5,10,${a * g1})`; ctx.beginPath(); path(night.radius(r)()); ctx.fill(); });
+      [[96, 0.2], [90, 0.26], [82, 0.2]].forEach(([r, a]) => { ctx.fillStyle = `rgba(4,5,10,${a * g1 * (1 - 0.5 * V.light)})`; ctx.beginPath(); path(night.radius(r)()); ctx.fill(); });
     }
 
     if (DATA.features) drawCountries();
@@ -466,10 +473,10 @@
     fproj.fitExtent([[b.x, b.y], [b.x + b.w, b.y + b.h]], { type: 'Sphere' });
     baseCv.width = Math.round(W * k); baseCv.height = Math.round(H * k);
     bctx.setTransform(k, 0, 0, k, 0, 0); bctx.clearRect(0, 0, W, H);
-    const o = bctx.createLinearGradient(0, b.y, 0, b.y + b.h); o.addColorStop(0, 'rgb(22,32,47)'); o.addColorStop(1, 'rgb(11,17,27)');
+    const o = bctx.createLinearGradient(0, b.y, 0, b.y + b.h); o.addColorStop(0, 'rgb(52,72,104)'); o.addColorStop(1, 'rgb(30,46,74)');
     bctx.fillStyle = o; bctx.beginPath(); fpath({ type: 'Sphere' }); bctx.fill();
     bctx.strokeStyle = 'rgba(243,234,217,0.06)'; bctx.lineWidth = 0.6; bctx.beginPath(); fpath(grat); bctx.stroke();
-    bctx.fillStyle = 'rgb(34,43,56)'; bctx.beginPath(); fpath(land); bctx.fill();
+    bctx.fillStyle = 'rgb(66,82,106)'; bctx.beginPath(); fpath(land); bctx.fill();
     const lite = D.lite || D.features, bk = { up: [], down: [], flat: [], none: [] };
     for (const id in lite) bk[(trendMap && trendMap[id]) || 'none'].push(lite[id]);
     for (const c of ['none', 'flat', 'down', 'up']) {
@@ -541,6 +548,7 @@
     focus(f) { F = Object.assign({ lon: V.lon, lat: V.lat }, f); userUntil = 0; },   // a scene that says nothing about where to look keeps the current view
     get layout() { return F.layout; },
     setSelected(id) { selected = id; },
+    intro() { if (introT == null) introT = performance.now(); },
     setTrendMap(m) { trendMap = m; flatDirty = true; },
     get form() { return F.form || 'globe'; },
     setFlag(c) { flagTex = c; },
