@@ -7,6 +7,8 @@
 #    It compares east edge and west edge pixels of the same size
 #    Adding Terra's and Aqua's slopes, b_adj = b_Terra + b_Aqua, cancels the sun angle error
 #    since Terra and Aqua fly in opposite directions
+#    The daily fire curve, from Terra's and Aqua's count ratio, lets Terra's fix follow a bell shaped day
+#    that peaks at 3 pm instead of a straight line
 # 3. Aqua's drift slope, measured against the steady VIIRS record
 #    Aqua sits near the top of the daily fire curve, where the swath method can't see a slope
 # 4. Factors that turn MODIS counts into VIIRS units, from 2012 to 2019, per season and day or night
@@ -170,11 +172,38 @@ def aqua_slope(w):
     return float(coef[1]), float(np.sqrt(cov[1, 1]))
 
 
+# The hour when fires peak in a typical day, in local solar time
+# Set from the fire science literature before testing, and matches GOES-16 geostationary counts over Brazil
+FIRE_PEAK_HOUR = 15.0
+
+
+# Measure the daily fire curve for one country from Terra and Aqua alone, no VIIRS
+# Both carry the same MODIS instrument, so their count ratio from 2012 to 2019 is how much the fire count
+# grows between their two pass times. Returns that log ratio and the two average pass times, or None
+def fire_curve(w):
+    x = w.filter(pl.col("day") & (pl.col("ym") >= CALIB_YEARS[0] * 100 + 1) & (pl.col("ym") <= CALIB_YEARS[1] * 100 + 12)
+                 ).drop_nulls(["hT", "hA", "T", "A"])
+    if x.height < 12 or x["T"].sum() < 50 or x["A"].sum() < 50:
+        return None
+    T, A = float(x["T"].sum()), float(x["A"].sum())
+    R, hT, hA = float(np.log(A / T)), float((x["hT"] * x["T"]).sum() / T), float((x["hA"] * x["A"]).sum() / A)
+    num = (hT - FIRE_PEAK_HOUR) ** 2 - (hA - FIRE_PEAK_HOUR) ** 2
+    return {"R": R, "hT": hT, "hA": hA} if R > 0 and num > 0 else None
+
+
 # Add the numbers that undo each month's drift when multiplied by the raw counts, and each month's season
 # Only daytime is corrected, so night stays at 1
-def corrections(w, b_adj, b_aq):
+# With a fire curve, Terra's fix follows a bell-shaped day that peaks at 3 pm instead of a straight line
+# A straight line overcorrects, because fires grow faster in the morning than near the afternoon peak
+def corrections(w, b_adj, b_aq, curve=None):
+    h = pl.col("hT")
+    if curve:
+        width = ((curve["hT"] - FIRE_PEAK_HOUR) ** 2 - (curve["hA"] - FIRE_PEAK_HOUR) ** 2) / curve["R"]
+        terra_log = ((h - FIRE_PEAK_HOUR) ** 2 - (NOMINAL_HOUR["Terra"] - FIRE_PEAK_HOUR) ** 2) / width
+    else:
+        terra_log = -b_adj * (h - NOMINAL_HOUR["Terra"])
     return w.with_columns(
-        pl.when(pl.col("day")).then((-b_adj * (pl.col("hT") - NOMINAL_HOUR["Terra"])).exp()).otherwise(1.0)
+        pl.when(pl.col("day")).then(terra_log.exp()).otherwise(1.0)
         .fill_null(1.0).alias("cT"),
         pl.when(pl.col("day")).then((-b_aq * (pl.col("hA") - NOMINAL_HOUR["Aqua"])).exp()).otherwise(1.0)
         .fill_null(1.0).alias("cA"),
@@ -412,7 +441,8 @@ def main():
         sw["b_adj"], sw["b_adj_se"] = b_adj, se_adj
 
         # Work out the drift corrections and factors, then run the tests
-        w = corrections(w, b_adj, b_aq)
+        curve = fire_curve(w)
+        w = corrections(w, b_adj, b_aq, curve)
         F = factors(w, prior=KG)
         kN = noaa20_factor(w)
         try:
@@ -434,7 +464,7 @@ def main():
 
         # Store everything about the country
         cal["regions"][r] = {
-            "swath": sw, "b_adj": b_adj, "b_adj_se": se_adj, "b_aqua": b_aq, "b_aqua_se": se_aq,
+            "swath": sw, "b_adj": b_adj, "b_adj_se": se_adj, "b_aqua": b_aq, "b_aqua_se": se_aq, "fire_curve": curve,
             "quality": {"tier": tier, "weight_own_slope": round(w_adj, 3), "weight_own_aqua": round(w_aq, 3), "calibration_detections": n_cal},
             "factors": F, "noaa20_to_snpp": kN, "validation": val,
             "day_hour_by_year": {int(s): {int(y): round(float(h), 3) for _, y, h in hours.filter(pl.col("sat") == s).iter_rows()}

@@ -36,7 +36,7 @@ def month_factors(region):
 
     # Load the country's monthly counts and pass times, and work out each month's drift correction
     rm = pl.read_parquet(WORK / "region_month.parquet").filter(pl.col("region") == region)
-    w = corrections(wide(rm), c["b_adj"], c["b_aqua"])
+    w = corrections(wide(rm), c["b_adj"], c["b_aqua"], c.get("fire_curve"))
     F = c["factors"]
 
     # Look up the factors by day or night and season, like "D_JJA"
@@ -47,7 +47,22 @@ def month_factors(region):
         key.replace_strict({k: v["sigma"] for k, v in F.items()}, return_dtype=pl.Float64).alias("sigma"),
         pl.when(pl.col("day")).then(c["noaa20_to_snpp"]["D"]).otherwise(c["noaa20_to_snpp"]["N"]).alias("kN"),
         (pl.col("S").fill_null(0) > 0).alias("has_S"), (pl.col("N").fill_null(0) > 0).alias("has_N"),
-    ).select("region", "day", "ym", "hT", "hA", "hS", "hN", "cT", "cA", "k", "kT", "sigma", "kN", "has_S", "has_N")
+    ).pipe(use_learned_factors).select("region", "day", "ym", "hT", "hA", "hS", "hN", "cT", "cA", "k", "kT", "sigma", "kN", "has_S", "has_N")
+
+
+# If 04b_learned_conversion.py has run, swap in its month by month factors for the years before VIIRS
+# Its factor applies to raw MODIS counts, so it is rescaled here to sit on top of the drift corrections
+def use_learned_factors(w):
+    path = DATA / "learned_factors.parquet"
+    if not path.exists():
+        return w
+    lk = pl.read_parquet(path).select("region", "day", "ym", "learned_k")
+    w = w.join(lk, on=["region", "day", "ym"], how="left")
+    early = (pl.col("ym") < VIIRS_START) & pl.col("learned_k").is_not_null()
+    two = pl.col("T").fill_null(0) * pl.col("cT") + pl.col("A").fill_null(0) * pl.col("cA")
+    return w.with_columns(
+        pl.when(early & (two > 0)).then(pl.col("learned_k") * (pl.col("T").fill_null(0) + pl.col("A").fill_null(0)) / two).otherwise(pl.col("k")).alias("k"),
+        pl.when(early).then(pl.col("learned_k") / pl.col("cT")).otherwise(pl.col("kT")).alias("kT")).drop("learned_k")
 
 
 # Count one country's detections and add up their fire power, per grid square, month, day or night and satellite
