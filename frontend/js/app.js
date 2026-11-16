@@ -76,7 +76,7 @@
     const x0 = (W - tw) / 2, y0 = cy - th / 2, x1 = W - tw * s - (mobile ? 16 : 30), y1 = mobile ? 15 : 22;
     title.style.transform = `translate(${x0 + (x1 - x0) * e}px,${y0 + (y1 - y0) * e}px) scale(${1 + (s - 1) * e})`;
     title.classList.toggle('docked', p > 0.95);
-    const fade = st.sheetOpen ? 1 : 1 - clamp((p - 0.12) / 0.3, 0, 1);   // the title has done its job once you scroll off the title screen; it comes back inside a country
+    const fade = st.sheetOpen ? 1 : 1 - clamp((p - 0.06) / 0.2, 0, 1);   // the title has done its job once you scroll off the title screen; it comes back inside a country
     title.style.opacity = fade < 1 ? fade.toFixed(3) : ''; title.style.pointerEvents = fade < 0.2 ? 'none' : '';
     const prog = clamp(scrollY / Math.max(1, document.documentElement.scrollHeight - H), 0, 1);
     title.style.setProperty('--year', (baseYear + (reduce ? 0 : 38 * prog)).toFixed(1));
@@ -142,7 +142,7 @@
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   function hintFrame() {
     const H = innerHeight, W = innerWidth, p = clamp(scrollY / (H * 0.85), 0, 1), introTop = intro.getBoundingClientRect().top;
-    const o = st.sheetOpen || document.body.classList.contains('loading') ? 0 : smooth(0.2, 0.42, p) * (1 - clamp((H * 0.62 - introTop) / (H * 0.22), 0, 1));
+    const o = st.sheetOpen || document.body.classList.contains('loading') ? 0 : smooth(0.28, 0.4, p) * (1 - clamp((H * 0.3 - introTop) / (H * 0.18), 0, 1))   // in after the title is gone, and held until the page reaches the top of the globe;
     if (o <= 0.01) { if (hintOp !== 0) { hintEl.style.opacity = 0; hintOp = 0; } return; }
     const V = G.V, R = V.R, w = hintEl.offsetWidth; hintH = hintH || hintEl.offsetHeight;
     const x = clamp(V.cx + R * 0.18 - 16, 10, W - w - 10), y = V.cy - R * 0.6 - hintH - 10;
