@@ -60,6 +60,14 @@ node tools/validate_harmonizer.js --write
 `frontend/tools/export_static.py` writes the website's series, climatology and metadata from `backend/main.py`. It only
 writes the countries that `data/` holds, so the committed 182-country files came from a full pipeline run.
 
+## Example datasets
+
+`frontend/data/examples/` holds six small CSVs cut from the harmonized record (a country-month panel, a ready-made next-month
+forecast table, MODIS-to-VIIRS pairs, a seasonal world grid, daily curves and a country scorecard), plus a column guide and a
+five-second baseline: `python frontend/data/examples/train_baseline.py`. The website lists them under "Use it". Rebuild them
+with `python frontend/tools/build_examples.py` (standard library only, identical bytes every run; `tests/test_examples.py`
+checks that, and that the forecast features never use the future).
+
 ## Regional fire-season explorer
 
 On any country sheet, draw a rectangle on the map or type coordinates to see that area's typical burning months from the
