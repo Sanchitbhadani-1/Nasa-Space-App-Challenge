@@ -182,8 +182,15 @@
     if (dockOf[pick]) peekDock();
   }
   let nav = null;   // an eased jump in progress: while it runs, the globe heads straight for the destination instead of lurching past every scene
+  /* the title screen holds still for the first stretch of scrolling (the title fades, the bubble arrives) and only then lets go */
+  const heroEl = $('#hero'); let pinLen = 0;
+  function pinHero() {
+    const S = Math.round(innerHeight * 0.55);
+    if (S !== pinLen) { pinLen = S; heroEl.style.setProperty('--S', S + 'px'); }
+    heroEl.style.setProperty('--pin', Math.min(scrollY, S) + 'px');
+  }
   function onScroll() {
-    placeTitle();
+    placeTitle(); pinHero();
     if (st.sheetOpen) return;
     const H = innerHeight, mid = H * 0.5, introTop = intro.getBoundingClientRect().top;
     document.body.classList.toggle('lightpage', introTop <= 0);
