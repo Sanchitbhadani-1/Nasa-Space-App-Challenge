@@ -966,7 +966,7 @@
   const minWait = new Promise((r) => setTimeout(r, reduce ? 100 : 1900));
   Promise.all([DATA.ready.catch((e) => { console.error(e); return null; }), (document.fonts && document.fonts.ready) || 0, minWait]).then(async ([d]) => {
     layoutTitle();
-    document.body.classList.remove('loading'); G.intro();
+    document.body.classList.remove('loading');
     if (!reduce) { const t0 = performance.now(); (function unmelt(now) { const t = clamp((now - t0) / 2200, 0, 1); baseYear = 2050 - 67 * (1 - Math.pow(1 - t, 3)); placeTitle(); if (t < 1) requestAnimationFrame(unmelt); })(t0); }
     if (!d) { $('.explore-hint').textContent = 'The data files did not load. Open this page over http(s), not as a local file.'; $('#country-search-status').textContent = 'Country data could not be loaded. Refresh to try again.'; return; }
     initEvidence(); storyRhythm(); initTrend(); if (window.EXTRAS) window.EXTRAS.init(DATA); fitSticky();
