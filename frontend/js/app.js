@@ -160,6 +160,12 @@
     if (!coarse) return;
     dockEl.classList.add('peek'); clearTimeout(peekT); peekT = setTimeout(() => dockEl.classList.remove('peek'), 2200);
   }
+  let latestPick = 'hero', focusT = 0;
+  function commitFocus(pick) {
+    focusId = pick; const f = FOCI[pick] || FOCI.hero; G.focus(f);
+    document.body.dataset.form = f.away ? 'away' : f.form === 'flat' ? 'flat' : 'globe';
+    if (dockOf[pick]) peekDock();
+  }
   let nav = null;   // an eased jump in progress: while it runs, the globe heads straight for the destination instead of lurching past every scene
   function onScroll() {
     placeTitle();
@@ -171,10 +177,10 @@
     for (const s of scenes) { const r = (rects[s.id] = s.getBoundingClientRect()); if (r.top <= mid && r.bottom > mid) pick = s.id; }
     if (pick === 'hero' && introTop < H * 0.2) pick = 'explore';   // while the paper band is up, the globe quietly moves to its next position behind it
     if (nav && nav.focus) pick = nav.focus;
-    if (pick !== focusId) {
-      focusId = pick; const f = FOCI[pick] || FOCI.hero; G.focus(f);
-      document.body.dataset.form = f.away ? 'away' : f.form === 'flat' ? 'flat' : 'globe';
-      if (dockOf[pick]) peekDock();
+    latestPick = pick;
+    if (pick !== focusId) {   // the globe only changes between sections: wait until the scroll settles so a quick flick past a scene does not make it flinch
+      if (nav) commitFocus(pick);
+      else if (!focusT) focusT = setTimeout(() => { focusT = 0; if (latestPick !== focusId) commitFocus(latestPick); }, 170);
     }
     document.body.classList.toggle('on-hero', pick === 'hero');
     const line = H * 0.55;
@@ -380,7 +386,6 @@
   function initSources() {
     $('#sources .sources-content').append($('#sources-template').content.cloneNode(true));
     populateSources();
-    $('#globe-caption').textContent = `Globe: ${(DATA.climo.years || '2012-2025').replace('-', '–')} seasonal average · illustrative daily cycle`;
   }
 
   /* ============ flag map: the country's flag in theme colours only (ink, ember, sun, paper) ============ */
@@ -516,7 +521,7 @@
      to year (so you compare like with like), Day turns the clock round once. Any hand on the controls pauses it. */
   const PLAY = { mode: 'months', speed: 1, on: false };
   const PLAY_MS = { months: 380, years: 700 };   // time per step at 1x
-  const SPEEDS = [0.5, 1, 2, 4];
+  const SPEEDS = [0.5, 1, 2, 4, 8];
   try { const m = localStorage.getItem('sundial.playmode'), v = +localStorage.getItem('sundial.playspeed'); if (PLAY_MS[m] || m === 'day') PLAY.mode = m; if (SPEEDS.includes(v)) PLAY.speed = v; } catch (e) { /* storage can be blocked */ }
   const savePlay = () => { try { localStorage.setItem('sundial.playmode', PLAY.mode); localStorage.setItem('sundial.playspeed', String(PLAY.speed)); } catch (e) { /* ignore */ } };
   let playRaf = 0;
@@ -961,7 +966,7 @@
   const minWait = new Promise((r) => setTimeout(r, reduce ? 100 : 1900));
   Promise.all([DATA.ready.catch((e) => { console.error(e); return null; }), (document.fonts && document.fonts.ready) || 0, minWait]).then(async ([d]) => {
     layoutTitle();
-    document.body.classList.remove('loading');
+    document.body.classList.remove('loading'); G.intro();
     if (!reduce) { const t0 = performance.now(); (function unmelt(now) { const t = clamp((now - t0) / 2200, 0, 1); baseYear = 2050 - 67 * (1 - Math.pow(1 - t, 3)); placeTitle(); if (t < 1) requestAnimationFrame(unmelt); })(t0); }
     if (!d) { $('.explore-hint').textContent = 'The data files did not load. Open this page over http(s), not as a local file.'; $('#country-search-status').textContent = 'Country data could not be loaded. Refresh to try again.'; return; }
     initEvidence(); storyRhythm(); initTrend(); if (window.EXTRAS) window.EXTRAS.init(DATA); fitSticky();
