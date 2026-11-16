@@ -29,21 +29,26 @@
   };
 
   const st = { year: 2000, yearTouched: false, sheetOpen: false };
+  const TITLE0 = document.title;
   let focusId = 'hero';
 
-  /* ============ focus table: where the globe looks for each part of the page ============ */
+  /* ============ the journey: where the globe goes, and what the page looks like, for each part of the story ============
+     at:   where the globe sits (fractions of the screen)       k: size       side: which side the text takes
+     away: the globe slides off and fades                       form: 'flat' unfolds it into a world map
+     bg:   the page colour behind this scene (see SCENE_BG)     theme: 'ink' draws the globe for a dark page */
   const FOCI = {
     hero: { layout: 'hero', lon: -45, lat: 8, auto: true, ring: 0.3 },
     explore: { layout: 'explore', lon: -40, lat: 6, auto: true, ring: 0.45 },
-    cameras: { layout: 'story', lon: 22, lat: -10, k: 1.15, month: 8, ring: 0, pins: [{ lon: 17.5, lat: -12, t: 'Angola' }, { lon: 35, lat: -17, t: 'Mozambique' }] },
-    clock: { layout: 'story', lon: 20, lat: 4, k: 1.05, ring: 1, bands: ['viirs'] },
-    drift: { layout: 'story', lon: 40, lat: 6, k: 1.05, ring: 0.8, bands: ['terra', 'aqua', 'viirs'] },
-    swath: { layout: 'story', lon: 28, lat: -6, k: 1.12, ring: 0.5, bands: ['terra'], pins: [{ lon: 22, lat: -26, t: 'west edge' }, { lon: 34.5, lat: -26, t: 'east edge' }] },
-    evidence: { layout: 'story', lon: 60, lat: 6, k: 1.0, month: 9, ring: 0, pins: [] },
-    trend: { layout: 'story', lon: 14, lat: 6, k: 1.0, month: 9, ring: 0, trend: true, pins: [] },   // countries painted by trend direction
-    continuity: { layout: 'story', lon: 30, lat: 12, k: 1.0, month: 9, ring: 0.5, bands: ['viirs'], pins: [] },
-    tools: { layout: 'story', lon: -10, lat: 8, k: 1.0, month: 9, ring: 0, pins: [] }
+    cameras: { layout: 'story', at: [0.7, 0.5], lon: 22, lat: -10, k: 1.15, month: 8, ring: 0, pins: [{ lon: 17.5, lat: -12, t: 'Angola' }, { lon: 35, lat: -17, t: 'Mozambique' }], bg: 'paper', side: 'left' },
+    clock: { layout: 'story', at: [0.28, 0.52], lon: 20, lat: 4, k: 1.2, ring: 1, bands: ['viirs'], bg: 'sun', side: 'right' },
+    drift: { layout: 'story', at: [0.72, 0.46], lon: 40, lat: 6, k: 1.1, ring: 0.8, bands: ['terra', 'aqua', 'viirs'], bg: 'sand', side: 'left' },
+    swath: { layout: 'story', at: [0.25, 0.5], lon: 28, lat: -6, k: 0.98, ring: 0.5, bands: ['terra'], pins: [{ lon: 22, lat: -26, t: 'west edge' }, { lon: 34.5, lat: -26, t: 'east edge' }], bg: 'stone', side: 'right' },
+    evidence: { layout: 'story', away: true, awayDir: 1, lon: 60, lat: 6, k: 1.0, month: 9, ring: 0, pins: [], bg: 'ink', theme: 'ink', side: 'center' },
+    trend: { layout: 'story', form: 'flat', lon: 12, lat: 14, month: 9, ring: 0, trend: true, pins: [], bg: 'paper', side: 'left' },   // every country painted by trend direction, on a flat map
+    continuity: { layout: 'story', at: [0.26, 0.5], lon: 30, lat: 12, k: 0.92, ring: 0.5, bands: ['viirs'], month: 9, pins: [], bg: 'dusk', side: 'right' },
+    tools: { layout: 'story', away: true, awayDir: -1, lon: -10, lat: 8, k: 1.0, month: 9, ring: 0, pins: [], bg: 'ink', theme: 'ink', side: 'center' }
   };
+  const SCENE_BG = { paper: [243, 234, 217], sun: [249, 226, 192], sand: [237, 225, 200], stone: [226, 229, 222], dusk: [221, 229, 240], ink: [17, 14, 12] };
   G.setBandInfo((id) => {
     const y = st.year;
     if (id === 'terra') return { h: S.terraH(y), c: '255,198,90', cl: '176,104,6', label: 'TERRA' };
@@ -88,8 +93,8 @@
   };
   const glowPos = (hour) => { const t = clamp((hour - 5) / 14, 0, 1); return { x: 100 - t * 100, y: 40 - 40 * Math.sin(Math.PI * t) }; };
   function skyFrame() {
-    const light = document.body.classList.contains('lightpage');
-    const c = SKY.sky(G.V.lat, G.T.month, G.localHourAtCenter(), 0), base = light ? PAPER : DARK, k = light ? 0.07 : 0.1;
+    const light = document.body.classList.contains('lightpage'), sc = FOCI[focusId];
+    const c = SKY.sky(G.V.lat, G.T.month, G.localHourAtCenter(), 0), base = light ? SCENE_BG[(sc && sc.bg) || 'paper'] || PAPER : DARK, k = light && !(sc && sc.bg === 'ink') ? 0.07 : 0.1;
     const tgt = SKY.mix(base, c.mid, k);
     for (let i = 0; i < 3; i++) cur.c[i] += (tgt[i] - cur.c[i]) * 0.12;
     const str = `rgb(${cur.c.map(Math.round).join(',')})`;
@@ -144,28 +149,96 @@
   addEventListener('pointerdown', () => document.body.classList.remove('kbd'));
   const jumpEl = $('#jump'); if (jumpEl && 'IntersectionObserver' in window) new IntersectionObserver((es, o) => es.forEach((en) => { if (en.isIntersecting) { jumpEl.classList.add('in'); o.disconnect(); } }), { threshold: 0.5 }).observe(jumpEl); else if (jumpEl) jumpEl.classList.add('in');
   const scenes = $$('.scene');
-  const dockMap = { hero: 'explore', explore: 'explore', cameras: 'cameras', clock: 'cameras', drift: 'cameras', swath: 'swath', evidence: 'evidence', trend: 'evidence', continuity: 'evidence', tools: 'tools' };
-  const closing = $('#why'), intro = $('#intro');
+  scenes.forEach((sc) => { const f = FOCI[sc.id]; if (f && f.side) sc.dataset.side = f.side; if (f && f.bg) sc.dataset.bg = f.bg; });   // which side the text takes comes from the same table as the globe
+  /* the dock has one dot per chapter; each fills as you read through the scenes in it */
+  const GROUPS = $$('#dock a').map((a) => ({ a, key: a.dataset.for, ids: a.dataset.scenes.split(' '), p: -1, on: false }));
+  const dockOf = {}; GROUPS.forEach((g) => g.ids.forEach((id) => { dockOf[id] = g.key; }));
+  const closing = $('#why'), intro = $('#intro'), dockEl = $('#dock');
+  const coarse = matchMedia('(hover: none)').matches;
+  let peekT = 0;
+  function peekDock() {   // no hover on a phone: show the labels for a moment when the chapter changes
+    if (!coarse) return;
+    dockEl.classList.add('peek'); clearTimeout(peekT); peekT = setTimeout(() => dockEl.classList.remove('peek'), 2200);
+  }
+  let nav = null;   // an eased jump in progress: while it runs, the globe heads straight for the destination instead of lurching past every scene
   function onScroll() {
     placeTitle();
     if (st.sheetOpen) return;
-    const mid = innerHeight * 0.5, introTop = intro.getBoundingClientRect().top;
+    const H = innerHeight, mid = H * 0.5, introTop = intro.getBoundingClientRect().top;
     document.body.classList.toggle('lightpage', introTop <= 0);
     document.body.classList.toggle('ink-title', introTop < 60);   // the paper band now fills the screen, so the page can safely turn white behind it
-    let pick = 'hero';
-    for (const s of scenes) { const r = s.getBoundingClientRect(); if (r.top <= mid && r.bottom > mid) pick = s.id; }
-    if (pick === 'hero' && introTop < innerHeight * 0.2) pick = 'explore';   // while the paper band is up, the globe quietly moves to its next position behind it
-    if (pick !== focusId) { focusId = pick; G.focus(FOCI[pick] || FOCI.hero); }
+    const rects = {}; let pick = 'hero';
+    for (const s of scenes) { const r = (rects[s.id] = s.getBoundingClientRect()); if (r.top <= mid && r.bottom > mid) pick = s.id; }
+    if (pick === 'hero' && introTop < H * 0.2) pick = 'explore';   // while the paper band is up, the globe quietly moves to its next position behind it
+    if (nav && nav.focus) pick = nav.focus;
+    if (pick !== focusId) {
+      focusId = pick; const f = FOCI[pick] || FOCI.hero; G.focus(f);
+      document.body.dataset.form = f.away ? 'away' : f.form === 'flat' ? 'flat' : 'globe';
+      if (dockOf[pick]) peekDock();
+    }
     document.body.classList.toggle('on-hero', pick === 'hero');
-    $$('#dock a').forEach((a) => a.classList.toggle('on', a.dataset.for === dockMap[pick]));
-    const past = closing.getBoundingClientRect().top < innerHeight * 0.4;
+    const line = H * 0.55;
+    for (const g of GROUPS) {
+      const first = rects[g.ids[0]], last = rects[g.ids[g.ids.length - 1]];
+      if (first && last) { const p = clamp((line - first.top) / Math.max(1, last.bottom - first.top), 0, 1); if (Math.abs(p - g.p) > 0.002) { g.p = p; g.a.style.setProperty('--p', p.toFixed(3)); } }
+      const on = g.key === dockOf[pick];
+      if (on !== g.on) { g.on = on; g.a.classList.toggle('on', on); if (on) g.a.setAttribute('aria-current', 'location'); else g.a.removeAttribute('aria-current'); }
+    }
+    const past = closing.getBoundingClientRect().top < H * 0.4;
     if (past !== document.body.classList.contains('past-stage')) { document.body.classList.toggle('past-stage', past); past ? G.stop() : G.start(); }
     if (pick === 'drift' && !st.yearTouched) {
-      const r = $('#drift').getBoundingClientRect();
-      setYear(2000 + clamp((innerHeight * 0.35 - r.top) / (r.height - innerHeight * 0.6), 0, 1) * 26.8);
+      const r = rects.drift;
+      setYear(2000 + clamp((H * 0.35 - r.top) / (r.height - H * 0.6), 0, 1) * 26.8);
     }
   }
   addEventListener('scroll', onScroll, { passive: true });
+
+  /* ---- eased scrolling: one smooth glide whatever the distance, and any wheel, touch or key stops it ---- */
+  document.documentElement.classList.add('js-scroll');   // turns off the browser's own smooth scrolling, which fights this one
+  const easeIO = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  let glide = null;
+  function stopGlide() { if (!glide) return; cancelAnimationFrame(glide.raf); glide = null; nav = null; onScroll(); }
+  ['wheel', 'touchstart', 'pointerdown'].forEach((t) => addEventListener(t, stopGlide, { passive: true }));
+  addEventListener('keydown', (e) => { if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(e.key)) stopGlide(); });
+  function glideTo(y, done) {
+    stopGlide();
+    const from = scrollY, y1 = clamp(y, 0, document.documentElement.scrollHeight - innerHeight), dist = Math.abs(y1 - from);
+    if (dist < 2) { if (done) done(); return; }
+    if (reduce) { scrollTo({ top: y1, left: 0, behavior: 'instant' }); if (done) done(); return; }
+    const dur = clamp(520 + dist * 0.2, 650, 1500), t0 = performance.now(), g = (glide = { raf: 0 });
+    const step = (now) => {
+      if (glide !== g) return;
+      const t = clamp((now - t0) / dur, 0, 1);
+      scrollTo({ top: from + (y1 - from) * easeIO(t), left: 0, behavior: 'instant' });
+      if (t < 1) g.raf = requestAnimationFrame(step); else { glide = null; if (done) done(); }
+    };
+    g.raf = requestAnimationFrame(step);
+  }
+  /* go to a scene or any element by id. Scenes land with their card centred; forms and panels land with a little air above. */
+  function goTo(id, opts) {
+    const el = document.getElementById(id); if (!el) return false;
+    const top = el.getBoundingClientRect().top + scrollY, isScene = !!FOCI[id];
+    nav = { id, focus: isScene ? id : null };
+    glideTo(id === 'hero' ? 0 : isScene ? top : top - Math.round(innerHeight * 0.12), () => {
+      nav = null; onScroll();
+      if (!opts || !opts.silent) { try { history.replaceState(null, '', '#' + id); } catch (e) { /* ignore */ } }
+    });
+    return true;
+  }
+  document.addEventListener('click', (e) => {   // every in-page link glides: the dock, the title, the buttons, the skip link
+    const a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || a.closest('#sheet')) return;
+    let id = ''; try { id = decodeURIComponent(a.getAttribute('href').slice(1)); } catch (err) { return; }
+    if (!id || /^place=/.test(id) || !document.getElementById(id)) return;
+    e.preventDefault(); goTo(id);
+  });
+
+  /* ---- cards ease in from the side their scene puts them on ---- */
+  if ('IntersectionObserver' in window && !reduce) {
+    document.documentElement.classList.add('reveal');
+    const io = new IntersectionObserver((es) => es.forEach((en) => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } }), { threshold: 0.06, rootMargin: '0px 0px -6% 0px' });
+    $$('.scene .card').forEach((c) => io.observe(c));
+  }
   /* the drift card stays pinned while the year scrubs, so all of it has to fit above the dock */
   const stickyCard = $('#drift .card.sticky');
   function fitSticky() { if (stickyCard) stickyCard.style.setProperty('--stickyH', stickyCard.offsetHeight + 'px'); }
@@ -344,10 +417,11 @@
     const token = ++openToken;
     const s = await DATA.loadSeries(id), c = DATA.byId[id];
     if (token !== openToken) return;   // a newer country was picked while this one was loading
-    stopDay();
+    stopPlay();
     sh.region = null;
     sh.rh = RH && DATA.diurnal ? RH.measure(DATA.diurnal[id]) : null;   // this country's measured daily curve
     Object.assign(sh, { id, s, c, idx: opts.idx != null ? opts.idx : s.months.length - 1, hour: hourAt(c.centroid[0]), mode: 'camera', div: 0.5, playing: false });
+    document.title = `${c.name} · ${TITLE0}`;
     st.sheetOpen = true; document.body.classList.add('sheet-open');
     const { lat, lon, span } = DATA.placeGeom(id);   // not the plain bbox: Russia, Fiji, NZ and the US straddle 180°
     sh.lon = lon;
@@ -366,7 +440,7 @@
   }
   function closePlace() {
     if (!st.sheetOpen) return;
-    openToken++; stopDay(); st.sheetOpen = false; document.body.classList.remove('sheet-open');
+    openToken++; stopPlay(); document.title = TITLE0; st.sheetOpen = false; document.body.classList.remove('sheet-open');
     sheet.classList.remove('open'); sheet.setAttribute('aria-hidden', 'true');
     G.setSelected(null); G.setFlag(null); G.unlock(); sheetCtx = null;
     G.focus(FOCI.cameras || FOCI.hero); focusId = 'cameras';
@@ -401,13 +475,35 @@
   scroller.addEventListener('scroll', () => $('#sheet-bar').classList.toggle('on', scroller.scrollTop > innerHeight * 0.3));
   $('#m-prev').addEventListener('click', () => selectIdx(Math.max(0, sh.idx - 1)));
   $('#m-next').addEventListener('click', () => selectIdx(Math.min(sh.s.months.length - 1, sh.idx + 1)));
+  $('#play').addEventListener('click', togglePlay);
+  $('#play-mode').addEventListener('click', (e) => { const b = e.target.closest('button[data-pm]'); if (b) setPlayMode(b.dataset.pm); });
+  $('#play-speed').addEventListener('click', () => { PLAY.speed = SPEEDS[(SPEEDS.indexOf(PLAY.speed) + 1) % SPEEDS.length]; savePlay(); syncPlay(); });
+  $('#timeline').addEventListener('input', (e) => {
+    const v = +e.target.value; if (!sh.s) return;
+    if (PLAY.on) stopPlay();
+    if (PLAY.mode === 'day') setHour(v, true);
+    else if (PLAY.mode === 'years') { const s = sh.s, mo = s.months[sh.idx] % 100; let j = s.months.indexOf(v * 100 + mo); if (j < 0) j = s.months.findIndex((m) => Math.floor(m / 100) === v); if (j >= 0) selectIdx(j); }
+    else selectIdx(v);
+  });
+  /* keys inside a country: ← → step a month (a year in Years mode), K plays or pauses */
+  addEventListener('keydown', (e) => {
+    if (!st.sheetOpen || !sh.s || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target, tag = t.tagName, field = tag === 'SELECT' || tag === 'TEXTAREA' || (tag === 'INPUT' && t.type !== 'range' && t.type !== 'checkbox' && t.type !== 'radio') || t.isContentEditable;
+    if (field || (tag === 'INPUT' && t.type === 'range')) return;
+    if (e.key === 'k' || e.key === 'K') { e.preventDefault(); togglePlay(); }
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      const dir = e.key === 'ArrowRight' ? 1 : -1, j = PLAY.mode === 'years' ? sh.s.months.indexOf(sh.s.months[sh.idx] + 100 * dir) : sh.idx + dir;
+      if (j >= 0 && j < sh.s.months.length) { e.preventDefault(); selectIdx(j); }
+    }
+  });
 
   function setHour(h, fromUser) {
     sh.hour = ((h % 24) + 24) % 24;
     G.lockLocalHour(sh.hour, sh.lon);
     $$('.hr', cardsEl).forEach((b) => b.classList.toggle('on', +b.dataset.h === Math.floor(sh.hour)));
     const tod = $('#tod'); if (tod) { tod.value = sh.hour.toFixed(2); $('#tod-out').textContent = fmt12(sh.hour); }
-    if (fromUser) stopDay();
+    if (fromUser && PLAY.on) stopPlay();
+    if (PLAY.mode === 'day') syncTimeline();
   }
   const fmt12 = (h) => { const hh = Math.floor(h) % 24, mm = Math.floor((h % 1) * 60); return `${hh % 12 || 12}:${String(mm).padStart(2, '0')} ${hh < 12 ? 'AM' : 'PM'}`; };
   function paintTrack() {
@@ -415,15 +511,88 @@
     const stops = []; for (let h = 0; h <= 24; h++) { const k = clamp(glowAlpha(h % 24, sheetCtx.lat, sheetCtx.month, sheetCtx.smoke, 0) / 0.9, 0, 1); stops.push(`rgb(${Math.round(8 + 247 * k)},${Math.round(6 + 100 * k)},${Math.round(6 + 20 * k)}) ${(h / 24 * 100).toFixed(1)}%`); }
     $('#tod').style.setProperty('--trackbg', `linear-gradient(90deg, ${stops.join(',')})`);
   }
-  let dayRaf = 0;
-  function playDay() {
-    sh.playing = true; $('#day-play').textContent = '❚❚ Pause'; let last = performance.now();
-    const step = (now) => { if (!sh.playing) return; setHour(sh.hour + (now - last) / 1000 * (24 / 16)); last = now; dayRaf = requestAnimationFrame(step); };
-    dayRaf = requestAnimationFrame(step);
+  /* ---------- play: through the months, through the years, or through one day ----------
+     One engine for all three. Months steps the record one month at a time, Years steps the same calendar month from year
+     to year (so you compare like with like), Day turns the clock round once. Any hand on the controls pauses it. */
+  const PLAY = { mode: 'months', speed: 1, on: false };
+  const PLAY_MS = { months: 380, years: 700 };   // time per step at 1x
+  const SPEEDS = [0.5, 1, 2, 4];
+  try { const m = localStorage.getItem('sundial.playmode'), v = +localStorage.getItem('sundial.playspeed'); if (PLAY_MS[m] || m === 'day') PLAY.mode = m; if (SPEEDS.includes(v)) PLAY.speed = v; } catch (e) { /* storage can be blocked */ }
+  const savePlay = () => { try { localStorage.setItem('sundial.playmode', PLAY.mode); localStorage.setItem('sundial.playspeed', String(PLAY.speed)); } catch (e) { /* ignore */ } };
+  let playRaf = 0;
+  function nextIdx() {   // where the next step lands, or -1 at the end of the record
+    const s = sh.s, ym = s.months[sh.idx];
+    if (PLAY.mode === 'months') return sh.idx < s.months.length - 1 ? sh.idx + 1 : -1;
+    const j = s.months.indexOf(ym + 100);   // same calendar month, next year
+    return j;
   }
-  function stopDay() { sh.playing = false; cancelAnimationFrame(dayRaf); const b = $('#day-play'); if (b) b.textContent = '▶ Play the day'; }
+  function startPlay() {
+    if (!sh.s) return;
+    if (PLAY.mode !== 'day' && nextIdx() < 0) selectIdx(PLAY.mode === 'months' ? 0 : sh.s.months.findIndex((m) => m % 100 === sh.s.months[sh.idx] % 100), { play: true });   // at the end: start over
+    PLAY.on = true; sheet.classList.add('playing'); syncPlay();
+    let last = performance.now(), acc = 0;
+    const tick = (now) => {
+      if (!PLAY.on) return;
+      const dt = Math.min(0.25, (now - last) / 1000); last = now;
+      if (PLAY.mode === 'day') setHour(sh.hour + dt * (24 / 16) * PLAY.speed);
+      else {
+        acc += dt * 1000 * PLAY.speed;
+        while (acc >= PLAY_MS[PLAY.mode]) {
+          acc -= PLAY_MS[PLAY.mode];
+          const j = nextIdx();
+          if (j < 0) { stopPlay(true); return; }
+          selectIdx(j, { play: true });
+        }
+      }
+      playRaf = requestAnimationFrame(tick);
+    };
+    playRaf = requestAnimationFrame(tick);
+  }
+  function stopPlay(atEnd) {
+    const was = PLAY.on;
+    PLAY.on = false; cancelAnimationFrame(playRaf); sheet.classList.remove('playing');
+    if (was && sh.s && PLAY.mode !== 'day') updatePlaceLink(sh.region && sh.region.bounds());   // the share link only needs to be right where playing stopped
+    syncPlay(atEnd ? 'end' : '');
+  }
+  function setPlayMode(m) {
+    if (m === PLAY.mode) return;
+    stopPlay(); PLAY.mode = m; savePlay(); syncPlay(); syncTimeline();
+  }
+  /* the timeline slider is months, years or hours depending on the mode, so it is always the thing that is playing */
+  function syncTimeline() {
+    const t = $('#timeline'); if (!t || !sh.s) return;
+    const s = sh.s, n = s.months.length, y0 = Math.floor(s.months[0] / 100), y1 = Math.floor(s.months[n - 1] / 100);
+    let ticks;
+    if (PLAY.mode === 'day') {
+      t.min = 0; t.max = 23.99; t.step = 0.02; t.value = sh.hour.toFixed(2); t.setAttribute('aria-valuetext', fmt12(sh.hour));
+      ticks = [[0, '12 AM'], [25, '6 AM'], [50, '12 PM'], [75, '6 PM'], [100, '12 AM']];
+    } else if (PLAY.mode === 'years') {
+      t.min = y0; t.max = y1; t.step = 1; t.value = Math.floor(s.months[sh.idx] / 100); t.setAttribute('aria-valuetext', String(t.value));
+      ticks = [y0, 2005, 2010, 2015, 2020, y1].filter((y, k, a) => y >= y0 && y <= y1 && a.indexOf(y) === k).map((y) => [(y - y0) / Math.max(1, y1 - y0) * 100, y]);
+    } else {
+      t.min = 0; t.max = n - 1; t.step = 1; t.value = sh.idx; t.setAttribute('aria-valuetext', ymLabel(s.months[sh.idx]));
+      ticks = [2005, 2010, 2015, 2020, 2025].filter((y) => s.months.indexOf(y * 100 + 1) >= 0).map((y) => [s.months.indexOf(y * 100 + 1) / Math.max(1, n - 1) * 100, y]);
+    }
+    t.style.setProperty('--pct', ((t.value - t.min) / Math.max(1e-9, t.max - t.min) * 100).toFixed(2) + '%');
+    $('#tl-ticks').innerHTML = ticks.map(([p, l]) => `<span style="left:${p.toFixed(1)}%">${l}</span>`).join('');
+  }
+  function syncPlay(why) {
+    const on = PLAY.on, s = sh.s;
+    $$('#play').forEach((b) => { b.classList.toggle('on', on); b.setAttribute('aria-label', on ? 'Pause' : PLAY.mode === 'day' ? 'Play the day' : PLAY.mode === 'years' ? 'Play through the years' : 'Play through the months'); });
+    $$('#play-mode button').forEach((b) => { const sel = b.dataset.pm === PLAY.mode; b.classList.toggle('on', sel); b.setAttribute('aria-checked', String(sel)); });
+    const sp = $('#play-speed'); if (sp) sp.textContent = PLAY.speed + '×';
+    const d = $('#day-play'); if (d) d.textContent = on && PLAY.mode === 'day' ? '❚❚ Pause' : '▶ Play the day';
+    const r = $('#play-read'); if (!r || !s) return;
+    const mo = MONF[s.months[sh.idx] % 100 - 1], last = ymLabel(s.months[s.months.length - 1]);
+    r.textContent = why === 'end' ? `Reached ${last}. Press play to start again.`
+      : PLAY.mode === 'day' ? (on ? 'Playing one day, local time. The sun and the satellites move with it.' : 'One day, local time. Press play, or drag the slider.')
+      : PLAY.mode === 'years' ? `${on ? 'Playing' : 'Plays'} ${mo} of each year, one year at a time.`
+      : `${on ? 'Playing' : 'Plays'} every month, ${ymLabel(s.months[0])} to ${last}, one month at a time.`;
+  }
+  function togglePlay() { PLAY.on ? stopPlay() : startPlay(); }
 
-  function selectIdx(i) {
+  function selectIdx(i, opts) {
+    if (!(opts && opts.play) && PLAY.on && PLAY.mode !== 'day') stopPlay();   // a tap on a month, a year or the arrows takes over from playing
     sh.idx = i;
     const s = sh.s, ym = s.months[i], mo = ym % 100, v = s.harm[i], z = s.z[i];
     $('#sheet-name').textContent = cname(sh.c);
@@ -446,7 +615,15 @@
     const cell = $(`.c-cell[data-i="${i}"]`, cardsEl); if (cell) cell.classList.add('sel');
     refreshPasses(); drawMark();
     $('#season-summary').innerHTML = REGIONS.countrySummary(s, sh.c, i);
-    updatePlaceLink(sh.region && sh.region.bounds());
+    if (!(opts && opts.play)) updatePlaceLink(sh.region && sh.region.bounds());   // while playing, the link is written once, when it stops (browsers cap how often the address can change)
+    const yr = Math.floor(ym / 100);
+    $$('.yr.on', cardsEl).forEach((e) => e.classList.remove('on'));
+    const yrow = $(`.yr[data-y="${yr}"]`, cardsEl); if (yrow) yrow.classList.add('on');
+    if (cell && opts && opts.play) {   // keep the playing month in view inside the scrolling calendar, without moving the page
+      const box = cell.closest('.cal-scroll');
+      if (box) { const r = cell.getBoundingClientRect(), b = box.getBoundingClientRect(); if (r.left < b.left + 24 || r.right > b.right - 24) box.scrollLeft += r.left - b.left - b.width / 2; }
+    }
+    syncTimeline(); if (!PLAY.on) syncPlay();
   }
 
   function updatePlaceLink(box) {
@@ -511,7 +688,7 @@
     // wire
     $('#tod').addEventListener('input', () => setHour(parseFloat($('#tod').value), true));
     $('#hours').addEventListener('click', (e) => { const b = e.target.closest('.hr'); if (b) setHour(+b.dataset.h + 0.5, true); });
-    $('#day-play').addEventListener('click', () => (sh.playing ? stopDay() : playDay()));
+    $('#day-play').addEventListener('click', () => { if (PLAY.on && PLAY.mode === 'day') stopPlay(); else { setPlayMode('day'); startPlay(); } });
     $('#yrows').addEventListener('click', (e) => { const b = e.target.closest('.yr'); if (!b) return; const y = +b.dataset.y; let best = -1, bi = -1; s.months.forEach((m, i) => { if (Math.floor(m / 100) === y && s.harm[i] > best) { best = s.harm[i]; bi = i; } }); if (bi >= 0) selectIdx(bi); });
     $('#anoms').addEventListener('click', (e) => { const b = e.target.closest('button[data-i]'); if (b) { selectIdx(+b.dataset.i); } });
     $$('.seg button', cardsEl).forEach((b) => b.addEventListener('click', () => { sh.mode = b.dataset.m; $$('.seg button', cardsEl).forEach((x) => x.classList.toggle('on', x === b)); drawBA(); }));
@@ -805,5 +982,7 @@
     };
     addEventListener('hashchange', fromHash);   // a link pasted into an open tab, or the back button
     fromHash();
+    let wanted = ''; try { wanted = decodeURIComponent(location.hash.slice(1)); } catch (e) { /* malformed */ }
+    if (wanted && !/^place=/.test(wanted) && document.getElementById(wanted)) setTimeout(() => goTo(wanted, { silent: true }), 400);   // a link like #swath lands there, gliding
   });
 })();
