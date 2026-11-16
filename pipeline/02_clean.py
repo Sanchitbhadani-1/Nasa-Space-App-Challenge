@@ -18,13 +18,18 @@ def clean_file(path: Path) -> pl.DataFrame:
 
     # Read the file with every column type set by hand
     # Left to guess, polars reads scan, track and frp as whole numbers in small files and then fails on 1.9
-    df = pl.read_csv(path, columns=COLS, schema_overrides={
-        "acq_time": pl.Utf8, "confidence": pl.Utf8, "satellite": pl.Utf8, "type": pl.Int64,
-        "acq_date": pl.Utf8, "latitude": pl.Float64, "longitude": pl.Float64, "scan": pl.Float64,
-        "track": pl.Float64, "frp": pl.Float64, "daynight": pl.Utf8})
+    # The yearly archive files have a "type" column, but the FIRMS API files that recent.py saves may not, so
+    # read only the columns the file really has
+    have = [c for c in COLS if c in pl.read_csv(path, n_rows=0).columns]
+    types = {"acq_time": pl.Utf8, "confidence": pl.Utf8, "satellite": pl.Utf8, "type": pl.Int64,
+             "acq_date": pl.Utf8, "latitude": pl.Float64, "longitude": pl.Float64, "scan": pl.Float64,
+             "track": pl.Float64, "frp": pl.Float64, "daynight": pl.Utf8}
+    df = pl.read_csv(path, columns=have, schema_overrides={c: t for c, t in types.items() if c in have})
 
     # Keep vegetation fires only (type 0). Volcanoes, factories and offshore gas flares are other types
-    df = df.filter(pl.col("type").is_null() | (pl.col("type") == 0))
+    # A file with no type column has no way to tell, so all its rows are kept
+    if "type" in df.columns:
+        df = df.filter(pl.col("type").is_null() | (pl.col("type") == 0))
 
     # MODIS gives confidence as a number, so keep 30 and above, and read Terra or Aqua from each row
     if source == "modis":
@@ -69,10 +74,11 @@ def main(raw_dirs):
     files = sorted(f for d in raw_dirs for f in Path(d).glob("*.csv"))
     for i, f in enumerate(files):
 
-        # Work out where this file's cleaned copy goes, and skip it if it is already there
+        # Work out where this file's cleaned copy goes, and skip it if it is there and not older than the CSV
+        # A CSV from recent.py grows as the year goes on, so a cleaned copy older than it is out of date
         source, year, *country = f.stem.split("_")
         dest = WORK / "hotspots" / "_".join(country) / f"{source}_{year}.parquet"
-        if dest.exists():
+        if dest.exists() and dest.stat().st_mtime >= f.stat().st_mtime:
             continue
 
         # Clean the file and save it

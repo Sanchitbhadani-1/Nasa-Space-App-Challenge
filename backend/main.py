@@ -17,7 +17,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from shapely import contains_xy
-from shapely.geometry import Polygon, shape
+from shapely.geometry import MultiPolygon, Polygon, shape
 
 # The project folder and its data folder
 ROOT = Path(__file__).resolve().parents[1]
@@ -96,7 +96,14 @@ def area_cells(area: str) -> pl.DataFrame:
         try:
             if kind == "bbox":
                 w, s, e, n = (float(v) for v in val.split(","))
-                geom = Polygon([(w, s), (e, s), (e, n), (w, n)])
+
+                # A box with west bigger than east crosses the 180 degree line (Fiji, the Aleutians), so it is
+                # two boxes: west to 180 and -180 to east. One box from west to east would wrap the long way round
+                if w > e:
+                    geom = MultiPolygon([Polygon([(w, s), (180, s), (180, n), (w, n)]),
+                                         Polygon([(-180, s), (e, s), (e, n), (-180, n)])])
+                else:
+                    geom = Polygon([(w, s), (e, s), (e, n), (w, n)])
             else:
                 pts = [tuple(float(v) for v in p.split()) for p in val.split(";") if p.strip()]
                 geom = Polygon(pts)
@@ -350,6 +357,7 @@ def download_hotspots(area: str, start: int = Query(..., description="YYYYMM"), 
 
     # Join each detection to its grid square and to its weight for that country, month, satellite and day or night
     # The file name check keeps a detection with its own country's square, since squares on a border belong to two countries
+    # On Windows DuckDB reports file names with backslashes, so they are turned into slashes before the check
     con = duckdb.connect()
     con.register("sel", cells.to_arrow())
     con.register("wts", WEIGHTS.to_arrow())
@@ -362,7 +370,7 @@ def download_hotspots(area: str, start: int = Query(..., description="YYYYMM"), 
         JOIN sel USING (cy, cx)
         JOIN wts w ON w.region = sel.region AND w.ym = h.ym AND w.sat = h.sat AND w.day = h.day
         WHERE h.ym BETWEEN {int(start)} AND {int(end)}
-          AND h.filename LIKE '%/' || sel.region || '/%'
+          AND replace(h.filename, chr(92), '/') LIKE '%/' || sel.region || '/%'
         ORDER BY h.date, h.hhmm"""
 
     # Count first, and refuse downloads that are too big
@@ -390,6 +398,9 @@ def download_hotspots(area: str, start: int = Query(..., description="YYYYMM"), 
 def data_file(name: str):
     # The website ships its own data files (frontend/data/meta.json, countries.geojson, ...). Those are for all
     # 182 countries and have a different layout from the pipeline's files of the same name, so they win
+    # Names with a slash, a backslash or two dots are never files in that folder, so they can't climb out of it
+    if "/" in name or "\\" in name or ".." in name:
+        raise HTTPException(404)
     site = ROOT / "frontend" / "data" / name
     if not name.startswith(".") and site.is_file():
         return FileResponse(site)
