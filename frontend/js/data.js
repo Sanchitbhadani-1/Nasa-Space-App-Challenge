@@ -2,10 +2,10 @@
 (function () {
   const get = (p) => fetch(p).then((r) => { if (!r.ok) throw new Error(p + ' ' + r.status); return r.json(); });
   const D = { series: {}, ready: null };
-  D.ready = Promise.all([get('data/meta.json'), get('data/countries.geojson'), get('data/scoreboard.json'), get('data/satellites.json'), get('data/climo.json'), get('data/diurnal.json'), get('data/trends.json').catch(() => null), get('data/continuity.json').catch(() => null), get('data/harmonizer_check.json').catch(() => null)])
-    .then(([meta, geo, sb, sat, climo, diur, trends, cont, hcheck]) => {
+  D.ready = Promise.all([get('data/meta.json'), get('data/countries.geojson'), get('data/scoreboard.json'), get('data/satellites.json'), get('data/climo.json'), get('data/diurnal.json'), get('data/trends.json').catch(() => null), get('data/continuity.json').catch(() => null), get('data/harmonizer_check.json').catch(() => null), get('data/provenance.json').catch(() => ({}))])
+    .then(([meta, geo, sb, sat, climo, diur, trends, cont, hcheck, provenance]) => {
       D.meta = meta; D.geo = geo; D.sat = sat; D.diurnal = diur; D.trends = trends && trends.rows;   // trends, continuity and the harmonizer check are optional: the page works without them
-      D.cont = cont; D.hcheck = hcheck && hcheck.rows;
+      D.cont = cont; D.hcheck = hcheck && hcheck.rows; D.provenance = provenance || {};
       D.byId = Object.fromEntries(meta.countries.map((c) => [c.id, c]));
       D.score = Object.fromEntries(sb.rows.filter((r) => D.byId[r.country]).map((r) => [r.country, r]));   // only countries that are on the globe
       D.features = Object.fromEntries(geo.features.map((f) => [f.properties.id, f]));
@@ -67,7 +67,7 @@
         for (let m = 0; m < 12; m++) { v[i * 12 + m] = c[2][m]; if (c[2][m] > 0) all.push(c[2][m]); }
       });
       all.sort((a, b) => a - b);
-      D.climo = { n, x, y, z, lon, lat, v, p95: all[Math.floor(all.length * 0.95)] || 1, p50: all[Math.floor(all.length * 0.5)] || 1 };
+      D.climo = { n, x, y, z, lon, lat, v, years: climo.years, cell_deg: climo.cell_deg, p95: all[Math.floor(all.length * 0.95)] || 1, p50: all[Math.floor(all.length * 0.5)] || 1 };
       return D;
     });
   D.loadSeries = (id) => D.series[id] ? Promise.resolve(D.series[id]) : get('data/series/' + id + '.json').then((s) => (D.series[id] = s));
