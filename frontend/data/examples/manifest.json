@@ -1,0 +1,68 @@
+{
+ "about": "Example datasets built from the SUNDIAL harmonized record. Source: NASA FIRMS (MODIS and VIIRS active fire detections).",
+ "first_month": 200011,
+ "last_month": 202512,
+ "countries": 182,
+ "files": [
+  {
+   "file": "country_month_panel.csv",
+   "rows": 54964,
+   "cols": 17,
+   "bytes": 4483801,
+   "title": "Country-month panel",
+   "use": "Time series, anomaly detection, trend models. The full harmonized record with its raw ingredients.",
+   "target": "harmonized (VIIRS-equivalent fires per month)",
+   "notes": "source says which camera carries the month: modis before 2012, snpp (Suomi NPP) after. glued is the uncorrected splice of MODIS and VIIRS."
+  },
+  {
+   "file": "forecast_features.csv",
+   "rows": 52780,
+   "cols": 20,
+   "bytes": 6175062,
+   "title": "Next-month forecast table",
+   "use": "Gradient boosting, neural nets, anything tabular. Train in seconds on a laptop.",
+   "target": "y (or y_log1p): the month's harmonized fire count",
+   "notes": "Every feature uses only months before the target (lags, rolling means, the same calendar month in earlier years), so there is no leakage. split is time-ordered: train to 2019, valid 2020 to 2022, test 2023 on."
+  },
+  {
+   "file": "harmonizer_pairs.csv",
+   "rows": 29279,
+   "cols": 11,
+   "bytes": 1580837,
+   "title": "MODIS to VIIRS pairs",
+   "use": "Learn a better harmonizer: raw Terra and Aqua counts and their drifting pass times in, VIIRS counts out.",
+   "target": "suomi_npp_n (what the stable VIIRS camera counted)",
+   "notes": "Months from 2012, when both camera families fly. Pass hours are each satellite's mean daytime local solar time over that country that month. Counts are raw detections, not harmonized."
+  },
+  {
+   "file": "grid_seasonal.csv",
+   "rows": 36429,
+   "cols": 16,
+   "bytes": 1832579,
+   "title": "World grid, seasonal means",
+   "use": "Spatial models, clustering fire regimes, predicting the burning season from where a cell is.",
+   "target": "peak_month (classification) or any month column (regression)",
+   "notes": "Mean harmonized detections per month, 2012-2025, on a 0.5 degree grid. Cells whose busiest month averages under four detections are left out."
+  },
+  {
+   "file": "daily_curves.csv",
+   "rows": 15258,
+   "cols": 5,
+   "bytes": 529482,
+   "title": "Daily fire rhythm",
+   "use": "Learn when in the day fires burn, per country, from where each satellite happened to look.",
+   "target": "detections by local_hour",
+   "notes": "Raw detections per local solar half-hour, per satellite, before the drift (2012-2019) and after (2022-2025). Terra and Aqua moved; Suomi NPP did not."
+  },
+  {
+   "file": "country_scorecard.csv",
+   "rows": 182,
+   "cols": 18,
+   "bytes": 22495,
+   "title": "Country scorecard",
+   "use": "Tiny and instant: predict where the correction works, or where gluing flips the trend.",
+   "target": "terra_drift_gap_closed_pct, or trend_kind",
+   "notes": "One row per country: calibration slopes, held-out error, how much of Terra's false trend the fix removed, and the glued against fair yearly trend."
+  }
+ ]
+}

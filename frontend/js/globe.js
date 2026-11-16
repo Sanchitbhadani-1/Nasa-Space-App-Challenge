@@ -12,7 +12,7 @@
   const grat = d3.geoGraticule10();
 
   const T = { utc: 11, month: 9.2, playing: !reduce, utcTarget: null, monthTarget: null };
-  const V = { lon: -45, lat: 8, R: 300, cx: 0, cy: 0, glass: 0, ring: 0.3, band: 0, ctry: 1, labels: 0, light: 0, trend: 0 };
+  const V = { lon: -45, lat: 8, R: 300, cx: 0, cy: 0, glass: 0, ring: 0.3, band: 0, ctry: 1, labels: 0, light: 0, trend: 0, vis: 1, flat: 0 };   // vis: 0 when the globe has slid away; flat: 0 globe .. 1 flat world map
   let trendMap = null;   // id -> 'up' | 'down' | 'flat': paints whole countries by the direction of their fire trend
   const TREND_COL = { up: 'rgba(255,106,26,.62)', down: 'rgba(125,178,255,.62)', flat: 'rgba(243,234,217,.2)' };
   let F = { layout: 'hero', lon: -45, lat: 8, auto: true, ring: 0.3 };
@@ -24,10 +24,12 @@
   const hdiff = (a, b) => ((((a - b + 12) % 24) + 24) % 24) - 12;
 
   function resize() {
+    if (W && window.innerWidth === W && Math.abs(window.innerHeight - H) < 140 && matchMedia('(hover: none)').matches) return;   // toolbar show/hide on a phone
     DPR = Math.min(window.devicePixelRatio || 1, 1.25);
     W = window.innerWidth; H = window.innerHeight;
     cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
     cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    if (typeof flatCv !== 'undefined') { flatCv.width = cv.width; flatCv.height = cv.height; flatCv.style.width = W + 'px'; flatCv.style.height = H + 'px'; flatDirty = true; }
     const r = S.rng(77);
     stars = Array.from({ length: 300 }, () => ({ x: r() * W, y: r() * H, a: 0.12 + r() * 0.55, s: r() < 0.08 ? 1.7 : r() < 0.3 ? 1.1 : 0.7, ph: r() * 6.3, sp: 0.6 + r() * 1.4 }));
   }
@@ -42,9 +44,22 @@
       const fit = Math.min(W * (mobile ? 0.9 : 0.5), H * 0.36);
       return { R: Math.min(9000, fit / (spanDeg * Math.PI / 180)), cx: mobile ? W / 2 : W * 0.5, cy: mobile ? H * 0.2 : H * 0.24 };
     }
-    // story: globe sits to the right of the text column
-    const R = Math.min(H * 0.4, W * 0.27) * (f.k || 1);
-    return mobile ? { R: Math.min(W * 0.4, H * 0.27) * (f.k || 1), cx: W / 2, cy: H * 0.28 } : { R, cx: W * 0.7, cy: H * 0.5 };
+    // story: where the globe sits is up to each scene (f.at = fractions of the screen), and it can slide away or unfold into a flat map
+    const k = f.k || 1, at = f.at || [0.7, 0.5];
+    let R, cx, cy;
+    if (mobile) { R = Math.min(W * 0.4, H * 0.27) * k; cx = W / 2; cy = H * 0.28; }
+    else { R = Math.min(H * 0.4, W * 0.27) * k; cx = W * at[0]; cy = H * at[1]; }
+    if (f.form === 'flat') { const b = flatBox(); R *= 1.12; cx = b.x + b.w / 2; cy = b.y + b.h / 2; }
+    if (f.away) { cx += (f.awayDir || 1) * W * (mobile ? 0.5 : 0.32); R *= 0.8; }
+    return { R, cx, cy };
+  }
+
+  /* the rectangle the flat world map fills: right of the text column on a desktop, under the title on a phone */
+  function flatBox() {
+    const mobile = W < 860;
+    if (mobile) { const w = W * 0.94, h = Math.min(w / 2.05, H * 0.3); return { x: W * 0.03, y: H * 0.1, w, h }; }
+    const w = Math.min(W * 0.5, H * 1.35), h = w / 2.05;   // the text column is on the left, so the map takes the right half
+    return { x: W * 0.985 - w, y: (H - h) / 2, w, h };
   }
 
   const tone = (a) => { const l = V.light; return `rgba(${Math.round(243 + (28 - 243) * l)},${Math.round(234 + (21 - 234) * l)},${Math.round(217 + (16 - 217) * l)},${a})`; };
@@ -70,44 +85,70 @@
     fly = { s, lon0, t0: now, dur: 7000, end: 0 }; flyIdx++; flyWait = 0;
   }
   function updateFly(now) {
-    if (!fly && now > nextFly && !reduce && F.layout !== 'sheet' && V.glass < 0.3 && !dragging && !document.hidden) startFly(now);
+    if (!fly && now > nextFly && !reduce && F.layout === 'hero' && !dragging && !document.hidden) startFly(now);   // only on the title screen; inside a section nothing happens on a timer
     curFly = null; if (!fly) return;
     const u = (now - fly.t0) / fly.dur; let a = 1;
     if (u >= 1) { if (!fly.end) fly.end = now; a = 1 - (now - fly.end) / 1400; if (a <= 0) { fly = null; nextFly = now + 9000 + Math.random() * 6000; return; } }
     const uu = Math.min(1, u), lat = fly.s.dir < 0 ? 84 - 168 * uu : -84 + 168 * uu;
     curFly = { s: fly.s, lon: fly.lon0, lat, a, w: fly.s.w, dir: fly.s.dir };
   }
+  /* ---- satellites: a small, properly drawn spacecraft and a soft footprint. No hard outlines, nothing thick. ---- */
+  const rr = (x, y, w, h, r) => { if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); } else { ctx.beginPath(); ctx.rect(x, y, w, h); } };
+  /* drawn at the origin, travelling along +x: soft glow, two solar wings with cell lines, a lit body and a lens */
+  function sprite(k, c) {
+    const gl = ctx.createRadialGradient(0, 0, 0, 0, 0, 24 * k); gl.addColorStop(0, `rgba(${c},.42)`); gl.addColorStop(0.45, `rgba(${c},.12)`); gl.addColorStop(1, `rgba(${c},0)`);
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, 24 * k, 0, 6.3); ctx.fill();
+    for (const sg of [-1, 1]) {
+      ctx.save(); ctx.scale(1, sg);
+      ctx.strokeStyle = 'rgba(243,234,217,.7)'; ctx.lineWidth = 0.9 * k; ctx.beginPath(); ctx.moveTo(0, 3.4 * k); ctx.lineTo(0, 6 * k); ctx.stroke();   // arm
+      const wg = ctx.createLinearGradient(-3 * k, 0, 3 * k, 0); wg.addColorStop(0, 'rgba(150,178,230,.95)'); wg.addColorStop(1, 'rgba(96,126,190,.95)');
+      ctx.fillStyle = wg; rr(-3 * k, 6 * k, 6 * k, 10 * k, 1 * k); ctx.fill();
+      ctx.strokeStyle = 'rgba(14,22,48,.5)'; ctx.lineWidth = 0.6 * k; ctx.stroke();
+      ctx.beginPath(); for (let i = 1; i < 3; i++) { ctx.moveTo(-3 * k, (6 + i * 3.33) * k); ctx.lineTo(3 * k, (6 + i * 3.33) * k); } ctx.moveTo(0, 6 * k); ctx.lineTo(0, 16 * k); ctx.stroke();   // cells
+      ctx.restore();
+    }
+    const bg = ctx.createLinearGradient(0, -4 * k, 0, 4 * k); bg.addColorStop(0, '#fff3dc'); bg.addColorStop(0.35, `rgb(${c})`); bg.addColorStop(1, `rgb(${c})`);
+    ctx.fillStyle = bg; rr(-4.6 * k, -3.8 * k, 9.2 * k, 7.6 * k, 2 * k); ctx.fill();
+    ctx.strokeStyle = 'rgba(10,9,8,.5)'; ctx.lineWidth = 0.7 * k; ctx.stroke();
+    ctx.fillStyle = 'rgba(10,9,8,.72)'; ctx.beginPath(); ctx.arc(2.2 * k, 0, 1.5 * k, 0, 6.3); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.arc(1.7 * k, -0.5 * k, 0.5 * k, 0, 6.3); ctx.fill();
+  }
+  /* a small label on a dark pill, so it reads over land, ocean and fire alike */
+  function tag(text, x, y, c, a) {
+    ctx.font = '700 10.5px "Hanken Grotesk", system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const w = ctx.measureText(text).width + 14;
+    ctx.fillStyle = `rgba(10,9,8,${0.74 * a})`; rr(x, y - 9, w, 18, 9); ctx.fill();
+    ctx.fillStyle = `rgba(${c},${a})`; ctx.fillText(text, x + 7, y + 0.5); ctx.textBaseline = 'alphabetic';
+  }
+  /* the ground track: a thin dotted line along the satellite's meridian, with a barely-there footprint beside it */
+  function track(lon, lo, hi, half, c, a) {
+    if (hi - lo < 0.5) return;
+    ctx.fillStyle = `rgba(${c},${0.06 * a})`; ctx.beginPath(); path(d3.geoGraticule().extent([[lon - half, lo], [lon + half, hi]]).outline()); ctx.fill();
+    ctx.save(); ctx.setLineDash([1.5, 6]); ctx.lineCap = 'round'; ctx.strokeStyle = `rgba(${c},${0.6 * a})`; ctx.lineWidth = 1.3;
+    ctx.beginPath(); path({ type: 'LineString', coordinates: [[lon, lo], [lon, hi]] }); ctx.stroke(); ctx.restore();
+  }
   function drawFly() {
     if (!curFly) return;
-    const f = curFly, s0 = f.s, s = V.light > 0.5 && s0.cl ? Object.assign({}, s0, { c: s0.cl }) : s0, lam = V.lon * Math.PI / 180, phi = V.lat * Math.PI / 180;
+    const f = curFly, s0 = f.s, c = s0.c, tc = V.light > 0.5 && s0.cl ? s0.cl : s0.c, lam = V.lon * Math.PI / 180, phi = V.lat * Math.PI / 180;
     const vis = (lon, lat) => { const a = lon * Math.PI / 180, b = lat * Math.PI / 180; return Math.cos(b) * Math.cos(a) * Math.cos(phi) * Math.cos(lam) + Math.cos(b) * Math.sin(a) * Math.cos(phi) * Math.sin(lam) + Math.sin(b) * Math.sin(phi) > 0.07; };
-    const lo = f.dir < 0 ? f.lat : -84, hi = f.dir < 0 ? 84 : f.lat;
-    if (hi - lo > 0.5) {
-      const band = d3.geoGraticule().extent([[f.lon - f.w, lo], [f.lon + f.w, hi]]).outline();
-      ctx.fillStyle = `rgba(${s.c},${0.13 * f.a})`; ctx.strokeStyle = `rgba(${s.c},${0.65 * f.a})`; ctx.lineWidth = 1;
-      ctx.beginPath(); path(band); ctx.fill(); ctx.stroke();
-    }
+    track(f.lon, f.dir < 0 ? f.lat : -84, f.dir < 0 ? 84 : f.lat, f.w * 0.8, tc, f.a);
     if (!vis(f.lon, f.lat)) return;
     const lift = (ll) => { const q = proj(ll); return [V.cx + (q[0] - V.cx) * 1.08, V.cy + (q[1] - V.cy) * 1.08]; };
     const p = lift([f.lon, f.lat]), p2 = lift([f.lon, f.lat + f.dir * 3]);
-    const ang = Math.atan2(p2[1] - p[1], p2[0] - p[0]), k = Math.max(0.95, Math.min(2.4, V.R / 250));
-    ctx.save(); ctx.translate(p[0], p[1]); ctx.rotate(ang); ctx.globalAlpha = f.a;
-    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 22 * k); g.addColorStop(0, `rgba(${s.c},.5)`); g.addColorStop(1, `rgba(${s.c},0)`);
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 22 * k, 0, 6.3); ctx.fill();
-    ctx.fillStyle = 'rgba(243,234,217,.95)'; ctx.fillRect(-3 * k, -13 * k, 6 * k, 8.5 * k); ctx.fillRect(-3 * k, 4.5 * k, 6 * k, 8.5 * k);
-    ctx.fillStyle = `rgb(${s.c})`; ctx.fillRect(-4.5 * k, -3 * k, 9 * k, 6 * k);
-    ctx.strokeStyle = 'rgba(10,9,8,.55)'; ctx.lineWidth = 0.8; ctx.strokeRect(-3 * k, -13 * k, 6 * k, 8.5 * k); ctx.strokeRect(-3 * k, 4.5 * k, 6 * k, 8.5 * k);
-    ctx.restore();
+    const ang = Math.atan2(p2[1] - p[1], p2[0] - p[0]), k = Math.max(0.85, Math.min(2.1, V.R / 270));
+    ctx.save(); ctx.translate(p[0], p[1]); ctx.rotate(ang); ctx.globalAlpha = f.a; sprite(k, c); ctx.restore();
     if (F.layout === 'hero') { ctx.globalAlpha = 1; return; }   // title screen: just the satellite, no caption
-    ctx.font = '700 10.5px "Hanken Grotesk", system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.globalAlpha = f.a;
-    ctx.fillStyle = `rgb(${s.c})`; ctx.fillText(`${s.name} · ${s.sensor}`, p[0] + 20 * k, p[1] - 2);
-    ctx.fillStyle = tone(0.8); ctx.font = '600 10px "Hanken Grotesk", system-ui, sans-serif'; ctx.fillText(`${s.res} · passes ~${S.fmtH(s.h)} local time now`, p[0] + 20 * k, p[1] + 11);
     ctx.globalAlpha = 1;
+    tag(`${s0.name} · ${s0.sensor}`, p[0] + 22 * k, p[1] - 9, c, f.a);
+    ctx.font = '600 10px "Hanken Grotesk", system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = tone(0.8 * f.a);
+    ctx.fillText(`${s0.res} · passes ~${S.fmtH(s0.h)} local time now`, p[0] + 22 * k + 2, p[1] + 17);
   }
 
   function hit(px, py) {
-    const ll = proj.invert([px, py]);
-    if (!ll || d3.geoDistance(ll, [V.lon, V.lat]) > 1.5 || !window.DATA.features) return null;
+    if (!window.DATA.features) return null;
+    let ll;
+    if (V.flat > 0.5) { ll = fproj.invert([px, py]); if (!ll || !isFinite(ll[0]) || !isFinite(ll[1]) || Math.abs(ll[0]) > 180 || Math.abs(ll[1]) > 90) return null; }
+    else { ll = proj.invert([px, py]); if (!ll || d3.geoDistance(ll, [V.lon, V.lat]) > 1.5) return null; }
     const fb = window.DATA.fbox;
     for (const id in window.DATA.features) {
       const bb = fb && fb[id];
@@ -117,7 +158,7 @@
     return null;
   }
 
-  let lastDraw = 0;
+  let lastDraw = 0, lastGA = 1;
   function draw(now) {
     if (!running) return;
     if (document.hidden) { requestAnimationFrame(draw); return; }
@@ -138,7 +179,8 @@
     } else if (F.month != null) {
       let d = F.month - T.month; if (d > 6) d -= 12; if (d < -6) d += 12;
       T.month = 1 + ((T.month - 1 + d * ez(0.03) + 12) % 12);
-    } else if (T.playing) T.month = 1 + ((T.month - 1 + dt * (12 / 80)) % 12);
+    } else if (T.playing && (F.layout === 'hero' || F.layout === 'explore')) T.month = 1 + ((T.month - 1 + dt * (12 / 80)) % 12);
+    else { let d = 8.5 - T.month; if (d > 6) d -= 12; if (d < -6) d += 12; T.month = 1 + ((T.month - 1 + d * ez(0.03) + 12) % 12); }   // a scene that names no month settles on late summer instead of drifting through the year
 
     updateFly(now);
     // ease the camera
@@ -151,12 +193,20 @@
     V.trend += (((F.trend && trendMap) ? 1 : 0) - V.trend) * ez(0.07);
     V.ctry += ((F.layout === 'story' ? (F.trend ? 1 : 0.25) : F.layout === 'sheet' ? 0.0 : 1) - V.ctry) * ez(0.06);
     V.labels += (((F.layout === 'explore') ? 1 : 0) - V.labels) * ez(0.08);
-    V.light += (((F.layout === 'story' || F.layout === 'explore') ? 1 : 0) - V.light) * ez(0.09);
+    V.light += (((F.theme !== 'ink' && (F.layout === 'story' || F.layout === 'explore')) ? 1 : 0) - V.light) * ez(0.09);
+    V.vis += ((F.away ? 0 : 1) - V.vis) * ez(0.07);
+    V.flat += (((F.form === 'flat' && flatReady()) ? 1 : 0) - V.flat) * ez(0.07);
     if (!dragging && now > userUntil) {
       if (F.auto && !reduce) { autoLon += dt * 3.2; V.lon = wrap(autoLon); V.lat += (F.lat - V.lat) * ez(0.05); }
       else { V.lon = wrap(V.lon + angDiff(F.lon, V.lon) * e); V.lat += (F.lat - V.lat) * e; autoLon = V.lon; }
     } else autoLon = V.lon;
     inited = true;
+
+    // the globe fades out as it slides away or unfolds into the flat map; when it cannot be seen, do not paint it
+    const gA = V.vis * (1 - Math.min(1, V.flat * 1.5));
+    if (Math.abs(gA - lastGA) > 0.004) { cv.style.opacity = gA.toFixed(3); lastGA = gA; }
+    updateFlat();
+    if (gA < 0.015) { requestAnimationFrame(draw); return; }
 
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     ctx.clearRect(0, 0, W, H);
@@ -174,11 +224,12 @@
     }
     // ocean + land (turn translucent as we zoom, so the sky shows through)
     const o = ctx.createRadialGradient(V.cx - V.R * 0.3, V.cy - V.R * 0.35, V.R * 0.1, V.cx, V.cy, V.R);
-    o.addColorStop(0, `rgba(22,32,47,${0.06 + 0.94 * g1})`); o.addColorStop(1, `rgba(11,17,27,${0.06 + 0.94 * g1})`);
+    const mx = (a, b) => Math.round(a + (b - a) * V.light);   // on a paper page the globe is lifted so it does not read as a black hole
+    o.addColorStop(0, `rgba(${mx(22, 30)},${mx(32, 43)},${mx(47, 62)},${0.06 + 0.94 * g1})`); o.addColorStop(1, `rgba(${mx(11, 16)},${mx(17, 25)},${mx(27, 38)},${0.06 + 0.94 * g1})`);
     ctx.fillStyle = o; ctx.beginPath(); path({ type: 'Sphere' }); ctx.fill();
     ctx.strokeStyle = 'rgba(243,234,217,0.05)'; ctx.lineWidth = 0.6; ctx.beginPath(); path(grat); ctx.stroke();
     ctx.fillStyle = V.glass > 0.5 ? `rgba(14,20,34,${0.2 + 0.3 * g1})` : '#1c242f';
-    ctx.fillStyle = `rgba(${Math.round(28 - 10 * V.glass)},${Math.round(36 - 12 * V.glass)},${Math.round(47 - 6 * V.glass)},${0.34 + 0.66 * g1})`;
+    ctx.fillStyle = `rgba(${Math.round(mx(28, 40) - 10 * V.glass)},${Math.round(mx(36, 50) - 12 * V.glass)},${Math.round(mx(47, 64) - 6 * V.glass)},${0.34 + 0.66 * g1})`;
     ctx.beginPath(); path(land); ctx.fill();
     ctx.strokeStyle = `rgba(243,234,217,${0.09 + 0.3 * V.glass})`; ctx.lineWidth = 0.6 + V.glass; if (V.ctry < 0.7 || !window.DATA.features) { ctx.beginPath(); path(borders); ctx.stroke(); }   // country outlines below already draw the borders
 
@@ -186,7 +237,7 @@
     if (g1 > 0.02) {
       const [sLon, sLat] = sunPos();
       const night = d3.geoCircle().center([wrap(sLon + 180), -sLat]);
-      [[96, 0.2], [90, 0.26], [82, 0.2]].forEach(([r, a]) => { ctx.fillStyle = `rgba(4,5,10,${a * g1})`; ctx.beginPath(); path(night.radius(r)()); ctx.fill(); });
+      [[96, 0.2], [90, 0.26], [82, 0.2]].forEach(([r, a]) => { ctx.fillStyle = `rgba(4,5,10,${a * g1 * (1 - 0.3 * V.light)})`; ctx.beginPath(); path(night.radius(r)()); ctx.fill(); });
     }
 
     if (DATA.features) drawCountries();
@@ -336,16 +387,13 @@
 
   function drawBands() {
     F.bands.forEach((id) => {
-      const b = bandInfo(id); if (V.light > 0.5 && b.cl) b.c = b.cl;
-      const lon = wrap((b.h - T.utc) * 15);
-      const ring = d3.geoGraticule().extent([[lon - 5, -80], [lon + 5, 80]]).outline();
-      ctx.fillStyle = `rgba(${b.c},${0.13 * V.band})`; ctx.strokeStyle = `rgba(${b.c},${0.7 * V.band})`; ctx.lineWidth = 1;
-      ctx.beginPath(); path(ring); ctx.fill(); ctx.stroke();
+      const b = bandInfo(id), lon = wrap((b.h - T.utc) * 15), tc = V.light > 0.5 && b.cl ? b.cl : b.c;
+      track(lon, -80, 80, 5, tc, V.band);
       const lat = id === 'terra' ? 52 : id === 'aqua' ? 40 : 28;
-      if (d3.geoDistance([lon, lat], [V.lon, V.lat]) < 1.3) {
-        const p = proj([lon, lat]);
-        ctx.font = '600 10.5px "Hanken Grotesk", system-ui, sans-serif'; ctx.fillStyle = `rgba(${b.c},${V.band})`; ctx.textAlign = 'left';
-        ctx.fillText(`${b.label} ${S.fmtH(b.h)}`, p[0] + 9, p[1] + 3);
+      if (d3.geoDistance([lon, lat], [V.lon, V.lat]) < 1.25) {
+        const p = proj([lon, lat]), k = Math.max(0.95, Math.min(1.9, V.R / 250));
+        ctx.save(); ctx.translate(p[0], p[1]); ctx.rotate(-Math.PI / 2); ctx.globalAlpha = V.band; sprite(k, b.c); ctx.restore(); ctx.globalAlpha = 1;
+        tag(`${b.label} ${S.fmtH(b.h)}`, p[0] + 18 * k, p[1], b.c, V.band);
       }
     });
   }
@@ -398,6 +446,60 @@
     });
   }
 
+
+  /* ---- the flat world: one still image of every country, painted by trend, so the whole planet reads at once ----
+     It lives on its own canvas under the globe. Moving between the two is a cross-fade while the globe grows and glides
+     into the map's place, so nothing is redrawn per frame: only the canvas opacity and scale change. */
+  const flatCv = document.createElement('canvas'); flatCv.id = 'flat'; flatCv.setAttribute('aria-hidden', 'true'); cv.parentNode.insertBefore(flatCv, cv);
+  const fctx = flatCv.getContext('2d'), baseCv = document.createElement('canvas'), bctx = baseCv.getContext('2d');
+  const fproj = d3.geoNaturalEarth1(), fpath = d3.geoPath(fproj, bctx);   // fpath is only for the sphere, graticule and land, which are drawn in d3's own orientation
+  let flatDirty = true, flatPaint = true, flatHover = null, lastFA = -1, lastFS = -1;
+  const flatReady = () => !!(window.DATA && window.DATA.features);
+  /* a flat map needs no spherical maths: project each point, then fill as an ordinary polygon (ring direction then does not matter) */
+  function planar(c, feat) {
+    const g = feat.geometry, polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+    for (const poly of polys) for (const ring of poly) {
+      let n = 0;
+      for (const pt of ring) { const q = fproj(pt); if (!q) continue; if (n++) c.lineTo(q[0], q[1]); else c.moveTo(q[0], q[1]); }
+      if (n) c.closePath();
+    }
+  }
+  function renderFlat() {
+    const D = window.DATA, b = flatBox(), k = DPR;
+    fproj.fitExtent([[b.x, b.y], [b.x + b.w, b.y + b.h]], { type: 'Sphere' });
+    baseCv.width = Math.round(W * k); baseCv.height = Math.round(H * k);
+    bctx.setTransform(k, 0, 0, k, 0, 0); bctx.clearRect(0, 0, W, H);
+    const o = bctx.createLinearGradient(0, b.y, 0, b.y + b.h); o.addColorStop(0, 'rgb(30,43,62)'); o.addColorStop(1, 'rgb(16,25,38)');
+    bctx.fillStyle = o; bctx.beginPath(); fpath({ type: 'Sphere' }); bctx.fill();
+    bctx.strokeStyle = 'rgba(243,234,217,0.06)'; bctx.lineWidth = 0.6; bctx.beginPath(); fpath(grat); bctx.stroke();
+    bctx.fillStyle = 'rgb(42,54,72)'; bctx.beginPath(); fpath(land); bctx.fill();
+    const lite = D.lite || D.features, bk = { up: [], down: [], flat: [], none: [] };
+    for (const id in lite) bk[(trendMap && trendMap[id]) || 'none'].push(lite[id]);
+    for (const c of ['none', 'flat', 'down', 'up']) {
+      if (!bk[c].length) continue;
+      bctx.beginPath(); for (const f of bk[c]) planar(bctx, f);
+      bctx.fillStyle = c === 'none' ? 'rgba(255,130,50,0.1)' : TREND_COL[c]; bctx.fill('evenodd');
+      bctx.strokeStyle = 'rgba(10,9,8,0.55)'; bctx.lineWidth = 0.5; bctx.stroke();
+    }
+    bctx.strokeStyle = 'rgba(243,234,217,0.22)'; bctx.lineWidth = 1; bctx.beginPath(); fpath({ type: 'Sphere' }); bctx.stroke();
+    flatCv.style.transformOrigin = `${b.x + b.w / 2}px ${b.y + b.h / 2}px`;
+    flatDirty = false; flatPaint = true;
+  }
+  function updateFlat() {
+    if ((F.form === 'flat' || V.flat > 0.01) && flatReady()) {
+      if (flatDirty) renderFlat();
+      if (flatPaint) {
+        fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, flatCv.width, flatCv.height); fctx.drawImage(baseCv, 0, 0);
+        const f = flatHover && window.DATA.features[flatHover];
+        if (f) { fctx.setTransform(DPR, 0, 0, DPR, 0, 0); fctx.beginPath(); planar(fctx, f); fctx.strokeStyle = 'rgba(255,198,90,0.95)'; fctx.lineWidth = 1.8; fctx.stroke(); }
+        flatPaint = false;
+      }
+    }
+    const a = V.flat * V.vis, sc = 0.93 + 0.07 * V.flat;
+    if (Math.abs(a - lastFA) > 0.004) { flatCv.style.opacity = a.toFixed(3); lastFA = a; }
+    if (Math.abs(sc - lastFS) > 0.002) { flatCv.style.transform = `scale(${sc.toFixed(4)})`; lastFS = sc; }
+  }
+
   /* ---- input ---- */
   let down = null, lastPt = null, hoverAt = 0;
   cv.addEventListener('pointerdown', (e) => {
@@ -408,27 +510,29 @@
   cv.addEventListener('pointermove', (e) => {
     if (dragging) {
       const k = 90 / V.R;
-      V.lon = wrap(V.lon - (e.clientX - lastPt[0]) * k * 1.1);
-      V.lat = Math.max(-80, Math.min(80, V.lat + (e.clientY - lastPt[1]) * k * 1.1));
+      if (V.flat < 0.5) {   // the flat map does not turn
+        V.lon = wrap(V.lon - (e.clientX - lastPt[0]) * k * 1.1);
+        V.lat = Math.max(-80, Math.min(80, V.lat + (e.clientY - lastPt[1]) * k * 1.1));
+      }
       down.moved += Math.abs(e.clientX - lastPt[0]) + Math.abs(e.clientY - lastPt[1]);
       lastPt = [e.clientX, e.clientY];
     } else if (performance.now() - hoverAt > 60 && F.layout !== 'sheet') {
       hoverAt = performance.now();
       const id = hit(e.clientX, e.clientY);
-      if (id !== hover) { hover = id; cv.style.cursor = id ? 'pointer' : 'grab'; if (hoverCb) hoverCb(id, e.clientX, e.clientY); }
+      if (id !== hover) { hover = id; if (V.flat > 0.5) { flatHover = id; flatPaint = true; } cv.style.cursor = id ? 'pointer' : (V.flat > 0.5 ? 'default' : 'grab'); if (hoverCb) hoverCb(id, e.clientX, e.clientY); }
       else if (id && hoverCb) hoverCb(id, e.clientX, e.clientY);
     }
   });
   const end = (e) => {
     if (!dragging) return;
-    dragging = false; cv.classList.remove('grab'); userUntil = performance.now() + 3500;
+    dragging = false; cv.classList.remove('grab'); userUntil = F.auto ? performance.now() + 3500 : Infinity;
     if (down && down.moved < 7 && performance.now() - down.t < 600 && e.type === 'pointerup') {
       const id = hit(e.clientX, e.clientY);
       if (id && pickCb) pickCb(id);
     }
   };
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
-  cv.addEventListener('pointerleave', () => { if (!dragging) { hover = null; if (hoverCb) hoverCb(null); } });
+  cv.addEventListener('pointerleave', () => { if (!dragging) { hover = null; if (flatHover) { flatHover = null; flatPaint = true; } if (hoverCb) hoverCb(null); } });
 
   function start() { if (running) return; running = true; last = performance.now(); requestAnimationFrame(draw); }
   function stop() { running = false; }
@@ -437,10 +541,11 @@
 
   window.GLOBE = {
     T, V, start, stop,
-    focus(f) { F = f; userUntil = 0; },
+    focus(f) { F = Object.assign({ lon: V.lon, lat: V.lat }, f); userUntil = 0; },   // a scene that says nothing about where to look keeps the current view
     get layout() { return F.layout; },
     setSelected(id) { selected = id; },
-    setTrendMap(m) { trendMap = m; },
+    setTrendMap(m) { trendMap = m; flatDirty = true; },
+    get form() { return F.form || 'globe'; },
     setFlag(c) { flagTex = c; },
     onPick(cb) { pickCb = cb; }, onHover(cb) { hoverCb = cb; },
     setBandInfo(fn) { bandInfo = fn; },

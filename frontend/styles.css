@@ -524,3 +524,110 @@ body.sheet-open .globe-caption, body.loading .globe-caption, body.past-stage .gl
   .source-facts > div { grid-template-columns: 1fr; gap: 0.3rem; }
   body:not(.on-hero) .globe-caption { bottom: auto; top: 3.5rem; right: var(--gut); max-width: calc(100% - 2 * var(--gut)); }
 }
+
+/* =====================================================================================================
+   THE JOURNEY: dot dock, eased scrolling, scenes that differ, a globe that moves, play controls, datasets
+   ===================================================================================================== */
+html.js-scroll { scroll-behavior: auto; }   /* the page glides itself (js/app.js); the browser's smooth scroll would fight it */
+
+/* ---------- dock: four dots that fill as you read; they open into labelled buttons when you reach for them ---------- */
+nav.dock { gap: 0.45rem; padding: 0.45rem 0.7rem; align-items: center; bottom: max(0.8rem, env(safe-area-inset-bottom)); background: rgba(20, 16, 13, 0.74); border-color: rgba(255, 150, 80, 0.22); box-shadow: 0 10px 34px rgba(0, 0, 0, 0.28);
+  transition: opacity 0.3s, transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1), gap 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), padding 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.3s; }
+nav.dock::before { content: ""; position: absolute; inset: -1.8rem -2.4rem -1rem; }   /* a roomy hover zone around the little dots, so they are easy to find */
+nav.dock a { position: relative; display: flex; flex-direction: row; align-items: center; gap: 0; padding: 0.4rem; border-radius: 99px; color: #d8cdbb; font-size: 0.8rem; font-weight: 600; overflow: hidden; --p: 0;
+  transition: padding 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), gap 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.3s, color 0.2s, box-shadow 0.3s; }
+nav.dock .pip { flex: none; display: block; width: 0.72rem; height: 0.72rem; border-radius: 50%; background: linear-gradient(to top, var(--ember) calc(var(--p) * 100%), rgba(243, 234, 217, 0.14) 0); box-shadow: inset 0 0 0 1.5px rgba(243, 234, 217, 0.5);
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s, box-shadow 0.3s; }
+nav.dock a.on .pip { box-shadow: inset 0 0 0 1.5px var(--sun), 0 0 0 3px rgba(255, 198, 90, 0.25); }
+nav.dock a .ico { flex: none; width: 0; height: 1.25rem; opacity: 0; transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s; }
+nav.dock a .lab { max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap; transition: max-width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s; }
+nav.dock:hover, nav.dock:focus-within, nav.dock.peek { gap: 0.2rem; padding: 0.35rem; transform: translate(-50%, -2px); background: rgba(24, 18, 14, 0.9); }
+nav.dock:hover a, nav.dock:focus-within a, nav.dock.peek a { padding: 0.5rem 0.95rem 0.5rem 0.8rem; gap: 0.5rem; background: linear-gradient(90deg, rgba(255, 106, 26, 0.34) calc(var(--p) * 100%), rgba(255, 255, 255, 0.07) 0); }
+nav.dock:hover .pip, nav.dock:focus-within .pip, nav.dock.peek .pip { width: 0; opacity: 0; box-shadow: none; }
+nav.dock:hover a .ico, nav.dock:focus-within a .ico, nav.dock.peek a .ico { width: 1.25rem; opacity: 1; }
+nav.dock:hover a .lab, nav.dock:focus-within a .lab, nav.dock.peek a .lab { max-width: 6.5rem; opacity: 1; }
+nav.dock:hover a:hover, nav.dock:focus-within a:focus-visible { color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 198, 90, 0.55); }
+nav.dock a.on { color: #fff; }
+body.loading nav.dock, body.sheet-open nav.dock, body.on-hero nav.dock { transform: translate(-50%, 160%); }
+@media (max-width: 420px) { nav.dock:hover a, nav.dock:focus-within a, nav.dock.peek a { padding-inline: 0.6rem 0.7rem; gap: 0.35rem; } nav.dock a .lab { font-size: 0.74rem; } }
+
+/* ---------- scenes: text takes a side, the page changes colour, and every scene starts with a hairline ---------- */
+.scene[data-side="right"] { justify-content: flex-end; }
+.scene[data-side="center"] { justify-content: center; }
+@media (max-width: 860px) { .scene[data-side] { justify-content: center; } }
+.scene:not(.hero)::before { content: ""; position: absolute; left: var(--gut); right: var(--gut); top: 0; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(28, 21, 16, 0.2) 20%, rgba(28, 21, 16, 0.2) 80%, transparent); }
+.scene[data-bg="ink"]::before { background: linear-gradient(90deg, transparent, rgba(243, 234, 217, 0.3) 20%, rgba(243, 234, 217, 0.3) 80%, transparent); }
+#flat { position: absolute; inset: 0; display: block; pointer-events: none; opacity: 0; will-change: opacity, transform; }
+body[data-form="away"] .globe-caption, body[data-form="flat"] .globe-caption { opacity: 0; pointer-events: none; }
+.globe-caption { transition: opacity 0.5s; }
+
+/* cards ease in from the side their scene puts them on (only when the browser can observe them, and motion is welcome) */
+.reveal .scene .card { opacity: 0; transform: translate3d(var(--rx, -34px), 20px, 0) scale(0.985); transition: opacity 0.7s ease, transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.reveal .scene[data-side="right"] .card { --rx: 34px; }
+.reveal .scene[data-side="center"] .card { --rx: 0px; }
+.reveal .scene .card.in { opacity: 1; transform: none; }
+.reveal .scene .card.sticky { transform: none; }
+
+/* ---------- the country sheet: play through the months, the years, or a day ---------- */
+/* a transport bar pinned to the bottom of the country view, so it is there wherever you have scrolled to */
+.player { position: absolute; left: 50%; bottom: max(0.9rem, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 6; width: min(42rem, calc(100% - 1.6rem)); padding: 0.6rem 0.8rem 0.5rem; border-radius: 22px;
+  background: rgba(14, 9, 6, 0.8); border: 1px solid var(--glassLine); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); backdrop-filter: blur(22px) saturate(1.3); -webkit-backdrop-filter: blur(22px) saturate(1.3); text-shadow: none; }
+.player-row { display: flex; align-items: center; gap: 0.7rem; }
+.play-btn { flex: none; width: 2.7rem; height: 2.7rem; border-radius: 50%; border: 0; background: var(--ember); color: #1c0c03; display: grid; place-items: center; cursor: pointer; box-shadow: 0 4px 18px rgba(255, 106, 26, 0.42); transition: transform 0.15s, background 0.15s; }
+.play-btn svg { width: 1.2rem; height: 1.2rem; fill: currentColor; }
+.play-btn .i-pause, .play-btn.on .i-play { display: none; } .play-btn.on .i-pause { display: block; }
+.play-btn:hover { transform: scale(1.07); background: var(--sun); }
+.player .seg { flex: none; margin: 0; background: rgba(255, 255, 255, 0.07); }
+.player .seg button { padding: 0.38rem 0.8rem; color: #fff; }
+.player .seg button.on { color: #1b1b1b; }
+.speed { flex: none; min-width: 3rem; border: 1px solid var(--glassLine); background: rgba(255, 255, 255, 0.07); color: #fff; border-radius: 99px; padding: 0.45rem 0.7rem; font: 700 0.8rem var(--sans); cursor: pointer; }
+.speed:hover { background: rgba(255, 255, 255, 0.16); }
+.tl { flex: 1; min-width: 7rem; }
+#timeline { display: block; width: 100%; margin: 0; height: 24px; }
+#timeline::-webkit-slider-runnable-track { height: 6px; border-radius: 6px; background: linear-gradient(90deg, var(--ember) var(--pct, 0%), rgba(255, 255, 255, 0.24) 0); }
+#timeline::-moz-range-track { height: 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.24); }
+#timeline::-moz-range-progress { height: 6px; border-radius: 6px; background: var(--ember); }
+#timeline::-webkit-slider-thumb { margin-top: -7px; width: 20px; height: 20px; }
+.tl-ticks { position: relative; height: 0.95rem; margin: 0 10px; font-size: 0.66rem; font-weight: 600; opacity: 0.7; }
+.tl-ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.player-read { margin: 0.1rem 0 0; max-width: none; font-size: 0.76rem; color: #e4d7c0; text-align: center; }
+@media (max-width: 640px) {
+  .player-row { flex-wrap: wrap; row-gap: 0.2rem; }
+  .player .seg { margin-right: auto; }
+  .tl { order: 3; flex-basis: 100%; }
+}
+.sheet-scroll { padding-bottom: 9rem; }
+.yr.on { outline: 1.5px solid var(--ember); outline-offset: 2px; border-radius: 8px; }
+.sheet.playing .c-cell.sel { outline: 2px solid #fff; z-index: 1; }
+
+/* ---------- datasets ---------- */
+.ds-list { list-style: none; margin: 1rem 0; padding: 0; border-top: 1px solid var(--line); }
+.ds-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: center; padding: 0.85rem 0; border-bottom: 1px solid var(--line); }
+.ds-main b { display: block; font-size: 1.02rem; }
+.ds-meta { display: block; font-size: 0.78rem; font-weight: 600; color: var(--dim); }
+.ds-main p { margin: 0.3rem 0 0; font-size: 0.93rem; }
+.ds-main details { margin-top: 0.3rem; font-size: 0.86rem; }
+.ds-main summary { cursor: pointer; font-weight: 600; color: var(--ember); }
+.ds-main details p { color: var(--dim); }
+.ds-list .btn { white-space: nowrap; padding: 0.65rem 1rem; }
+.ds-quick { border: 1px dashed var(--line); border-radius: 16px; padding: 0.8rem 1rem 1rem; margin-top: 0.4rem; }
+.ds-quick-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.ds-quick-head .btn { padding: 0.5rem 0.9rem; }
+.ds-quick pre { margin: 0.6rem 0 0; overflow: auto; font: 500 0.8rem/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #1c1510; color: #f3ead9; border-radius: 12px; padding: 0.85rem 1rem; max-width: 100%; }
+#ds-note code { font-size: 0.8em; background: rgba(28, 21, 16, 0.08); padding: 0.05rem 0.3rem; border-radius: 4px; }
+@media (max-width: 640px) { .ds-list li { grid-template-columns: 1fr; } .ds-list .btn { justify-self: start; } }
+@media (max-width: 860px) {   /* no globe on the dark scenes: let the text use the whole screen */
+  .scene[data-bg="ink"]:not(.hero):not(.explore) { align-items: center; padding-top: 5.2rem; }
+}
+
+/* ---------- quieter dock, centred by margins (a transform-centred box slid sideways while it grew) ---------- */
+nav.dock { left: 0; right: 0; margin-inline: auto; width: max-content; transform: none; translate: 0 0; bottom: max(0.5rem, env(safe-area-inset-bottom)); padding: 0.28rem 0.5rem; gap: 0.25rem;
+  background: rgba(20, 16, 13, 0.4); border-color: rgba(255, 150, 80, 0.12); box-shadow: none; opacity: 0.8;
+  transition: opacity 0.3s, translate 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), gap 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), padding 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.3s; }
+nav.dock::before { inset: -0.5rem -1rem; }
+nav.dock .pip { width: 0.58rem; height: 0.58rem; }
+nav.dock a { padding: 0.36rem; }
+nav.dock:hover, nav.dock:focus-within, nav.dock.peek { transform: none; translate: 0 -2px; opacity: 1; gap: 0.2rem; padding: 0.35rem; background: rgba(24, 18, 14, 0.92); box-shadow: 0 10px 34px rgba(0, 0, 0, 0.28); }
+body.loading nav.dock, body.sheet-open nav.dock, body.on-hero nav.dock { transform: none; translate: 0 160%; opacity: 0; }
+
