@@ -1,4 +1,4 @@
-"""Export the SUNDIAL team's precomputed record to static JSON so the site runs on GitHub Pages (no server).
+"""Export the SUNDIAL team's precomputed record to static JSON so the site runs on any static host (no server).
 
 Run from the repo root with the venv active, after run_pipeline.sh has built data/:
     python frontend/tools/export_static.py frontend/data
@@ -63,7 +63,7 @@ tot = dump(out / "meta.json", meta)
 provenance_path = os.environ.get("SUNDIAL_PROVENANCE_FILE")
 provenance = json.loads(Path(provenance_path).read_text()) if provenance_path else {
     "product_versions": None, "uncertainty_method": None,
-    "analysis_repository": None, "analysis_revision": None,
+    "analysis_revision": None,
 }
 provenance["exported_at"] = datetime.now(timezone.utc).isoformat()
 tot += dump(out / "provenance.json", provenance)

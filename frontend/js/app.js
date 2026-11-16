@@ -389,12 +389,6 @@
     field('[data-product-versions]', p.product_versions);
     field('[data-uncertainty-method]', p.uncertainty_method ? `The exported 95% band is calculated as follows: ${p.uncertainty_method}. It is not a regional confidence interval.` : null);
     field('[data-analysis-revision]', p.analysis_revision);
-    if (p.analysis_repository) {
-      try {
-        const url = new URL(p.analysis_repository);
-        if (url.protocol === 'https:') $$('[data-analysis-revision]', root).forEach((el) => { const a = document.createElement('a'); a.href = url.href; a.textContent = p.analysis_revision ? `revision ${p.analysis_revision}` : 'upstream analysis repository (revision not recorded)'; a.target = '_blank'; a.rel = 'noopener'; el.replaceChildren(a); });
-      } catch (_) { /* Keep the explicit missing-provenance label. */ }
-    }
     if (p.exported_at && Number.isFinite(Date.parse(p.exported_at))) field('[data-export-date]', `Exported ${new Date(p.exported_at).toISOString()}.`);
   }
 

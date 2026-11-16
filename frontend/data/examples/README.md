@@ -1,8 +1,7 @@
 # Example datasets for training your own models
 
 Six small CSV files cut from the SUNDIAL harmonized fire record, so you can try a model in minutes instead of rebuilding
-25 years of NASA FIRMS detections first. Rebuild them any time with `python frontend/tools/build_examples.py`
-(standard library only, no network, same bytes every run).
+25 years of NASA FIRMS detections first. They are rebuilt from the site's own data with a short standard-library Python script, so the same inputs always give the same bytes.
 
 Fire counts come from NASA FIRMS (MODIS Terra and Aqua, VIIRS Suomi NPP and NOAA-20), corrected by the SUNDIAL pipeline
 into **VIIRS-equivalent detections per month**. The files are historical observations, not live alerts.
@@ -23,7 +22,7 @@ Cite NASA FIRMS for the underlying detections.
 
 ```python
 import pandas as pd
-base = "https://sanchitbhadani-1.github.io/Nasa-Space-App-Challenge/data/examples/"
+base = "https://YOUR-SITE/data/examples/"    # this site's address, then /data/examples/
 df = pd.read_csv(base + "forecast_features.csv")
 print(df.groupby("split").size())
 ```
