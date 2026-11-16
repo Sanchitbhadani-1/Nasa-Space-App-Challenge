@@ -46,7 +46,8 @@
     evidence: { layout: 'story', away: true, awayDir: 1, lon: 60, lat: 6, k: 1.0, month: 9, ring: 0, pins: [], bg: 'ink', theme: 'ink', side: 'center' },
     trend: { layout: 'story', form: 'flat', lon: 12, lat: 14, month: 9, ring: 0, trend: true, pins: [], bg: 'paper', side: 'left' },   // every country painted by trend direction, on a flat map
     continuity: { layout: 'story', at: [0.26, 0.5], lon: 30, lat: 12, k: 0.92, ring: 0.5, bands: ['viirs'], month: 9, pins: [], bg: 'dusk', side: 'right' },
-    tools: { layout: 'story', away: true, awayDir: -1, lon: -10, lat: 8, k: 1.0, month: 9, ring: 0, pins: [], bg: 'ink', theme: 'ink', side: 'center' }
+    tools: { layout: 'story', away: true, awayDir: -1, lon: -10, lat: 8, k: 1.0, month: 9, ring: 0, pins: [], bg: 'ink', theme: 'ink', side: 'center' },
+    train: { layout: 'story', away: true, awayDir: -1, lon: -10, lat: 8, k: 1.0, month: 9, ring: 0, pins: [], bg: 'ink', theme: 'ink', side: 'left' }
   };
   const SCENE_BG = { paper: [243, 234, 217], sun: [249, 226, 192], sand: [237, 225, 200], stone: [226, 229, 222], dusk: [221, 229, 240], ink: [17, 14, 12] };
   G.setBandInfo((id) => {
@@ -699,8 +700,9 @@
   ${TIER[sh.c.tier] ? `<p class="note"><b>${TIER[sh.c.tier][0]}.</b> ${TIER[sh.c.tier][1]}</p>` : ''}
   ${DATA.cont && DATA.cont.rows[sh.id] ? `<p class="note"><b>After Suomi NPP:</b> NOAA-20 × ${DATA.cont.rows[sh.id].c.toFixed(3)} stands in for it here${DATA.cont.rows[sh.id].ho == null ? '' : ` (held-out yearly error ${DATA.cont.rows[sh.id].ho.toFixed(1)}%)`}.</p>` : ''}
   ${worse ? `<p class="note"><b>Here the fix made things worse.</b> ${sh.id === 'India' ? 'Punjab crop burning moved later in the day, which breaks the method’s assumption.' : 'We show this on purpose.'}</p>` : ''}`}</section>
-<section class="gcard span2"><h3 class="gh">${ICON.down} Download</h3><div class="dl"><button type="button" class="btn" id="dl-csv">Monthly table (CSV)</button><a class="btn ghost" href="https://firms.modaps.eosdis.nasa.gov/download/" target="_blank" rel="noopener">NASA FIRMS raw archive ↗</a><button type="button" class="btn ghost" id="dl-link">Copy link to this view</button></div>
-  <p class="note">One row per month: harmonized count with the supplied 95% band, anomaly score, raw counts per satellite, uncorrected and drift-corrected MODIS, pass times and fire power. See the uncertainty limitations below.</p><p class="toast" id="toast" role="status" aria-live="polite"></p></section>
+<section class="gcard span2"><h3 class="gh">${ICON.down} Train a model on ${cname(sh.c)}</h3><div class="dl"><button type="button" class="btn train" id="dl-train">Train a forecast model</button><button type="button" class="btn ghost" id="dl-csv">Monthly table (CSV)</button><a class="btn ghost" href="https://firms.modaps.eosdis.nasa.gov/download/" target="_blank" rel="noopener">NASA FIRMS raw archive ↗</a><button type="button" class="btn ghost" id="dl-link">Copy link to this view</button></div>
+  <div class="sh-train" id="sh-train" aria-live="polite"></div>
+  <p class="note">Train fetches the forecast dataset and fits a model in your browser, then shows it against ${cname(sh.c)}'s real months. Nothing is uploaded. The CSV has one row per month: harmonized count with the supplied 95% band, anomaly score, raw counts per satellite, uncorrected and drift-corrected MODIS, pass times and fire power. See the uncertainty limitations below.</p><p class="toast" id="toast" role="status" aria-live="polite"></p></section>
 <section class="gcard span2" id="sheet-methodology" tabindex="-1"><details><summary>Sources, methodology &amp; limitations</summary><div class="sources-content"></div></details></section>`;
     $('#sheet-methodology .sources-content').append($('#sources-template').content.cloneNode(true));
     populateSources($('#sheet-methodology'));
@@ -712,6 +714,7 @@
     $('#anoms').addEventListener('click', (e) => { const b = e.target.closest('button[data-i]'); if (b) { selectIdx(+b.dataset.i); } });
     $$('.seg button', cardsEl).forEach((b) => b.addEventListener('click', () => { sh.mode = b.dataset.m; $$('.seg button', cardsEl).forEach((x) => x.classList.toggle('on', x === b)); drawBA(); }));
     $('#dl-csv').addEventListener('click', downloadCSV);
+    $('#dl-train').addEventListener('click', () => { if (window.TRAIN && window.TRAIN.available) window.TRAIN.forecastInto($('#sh-train'), sh.id, $('#dl-train')); else toast('Training needs the page served over http(s), in a browser with Web Workers.'); });
     $('#dl-link').addEventListener('click', async () => { try { await navigator.clipboard.writeText(location.href); toast('Link copied. It saves the country and month.'); } catch (e) { toast('Copy failed. The address bar holds the link.'); } });
     buildCalendar(); drawOrbit(); drawBA(); drawRhythm(); drawTrend();
   }

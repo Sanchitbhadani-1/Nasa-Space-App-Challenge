@@ -645,3 +645,69 @@ body:not(.loading) #title { transition: opacity 0.35s; }
 .hero { height: 169vh; height: 169svh; overflow: clip; }
 .hero-pin { position: sticky; top: 0; width: 100%; height: 100vh; height: 100svh; }
 body:not(.loading) #title { transition: opacity 0.8s; }
+
+/* =====================================================================================================
+   TRAIN BUTTONS, RESULTS, AND THE REGION BEFORE / AFTER
+   ===================================================================================================== */
+.scene.split { display: grid; grid-template-columns: minmax(0, 37rem) minmax(0, 1fr); gap: 1.4rem; align-items: start; }
+.scene.split .col { width: 100%; }
+.region { pointer-events: auto; position: sticky; top: 5vh; align-self: start; min-width: 0; }
+.region h2 { font-size: clamp(1.4rem, 2.1vw, 1.85rem); margin: 0.3rem 0 0.8rem; }
+@media (max-width: 1000px) { .scene.split { grid-template-columns: minmax(0, 1fr); } .region { position: static; } }
+
+.ds-actions { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
+.ds-actions .btn { white-space: nowrap; }
+.ds-csv { font-size: 0.74rem; font-weight: 600; color: var(--dim); text-decoration: underline; text-underline-offset: 2px; }
+.ds-csv:hover { color: var(--ember); }
+.ds-result { grid-column: 1 / -1; margin-top: 0.4rem; padding: 0.8rem 1rem 0.9rem; border-radius: 14px; background: rgba(28, 21, 16, 0.045); border: 1px solid var(--line); }
+.ds-result[hidden] { display: none; }
+.ds-prog { position: relative; height: 1.9rem; border-radius: 99px; background: rgba(28, 21, 16, 0.1); overflow: hidden; }
+.ds-prog i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ember); opacity: 0.85; transition: width 0.25s; }
+.ds-prog span { position: relative; padding: 0 0.9rem; font: 600 0.78rem/1.9rem var(--sans); color: #1c1510; }
+.ds-metrics > div { display: grid; grid-template-columns: minmax(7rem, 12rem) minmax(0, 1fr) 4.2rem; gap: 0.7rem; align-items: center; padding: 0.28rem 0; font-size: 0.84rem; }
+.ds-metrics .b { position: relative; height: 10px; border-radius: 6px; background: rgba(28, 21, 16, 0.1); }
+.ds-metrics .b i { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: #9a8d7a; }
+.ds-metrics .you { font-weight: 700; } .ds-metrics .you .b i { background: var(--ember); }
+.ds-metrics > div > b { text-align: right; font-variant-numeric: tabular-nums; }
+.ds-unit { margin: 0.35rem 0; font-size: 0.78rem; color: var(--dim); }
+.ds-verdict { margin: 0.3rem 0; font-size: 0.86rem; font-weight: 600; color: var(--ok); }
+.ds-verdict.warn { color: #a8480a; }
+.ds-fact { font-size: 0.86rem; margin: 0.5rem 0; }
+.ds-fig { margin: 0.6rem 0 0.3rem; }
+.ds-fig svg { width: 100%; height: auto; display: block; }
+.ds-fig .grid { stroke: var(--line); } .ds-fig text { font: 500 10px var(--sans); fill: var(--dim); }
+.ds-fig .act { fill: none; stroke: #1c1510; stroke-width: 1.6; } .ds-fig .mod { fill: none; stroke: var(--ember); stroke-width: 1.9; }
+.ds-fig .base { fill: none; stroke: #9a8d7a; stroke-width: 1.3; stroke-dasharray: 4 3; } .ds-fig .test { fill: rgba(255, 106, 26, 0.08); } .ds-fig .pt { fill: #1c1510; } .ds-fig .tl { fill: var(--ember); font-weight: 700; }
+.ds-fig figcaption { font-size: 0.76rem; color: var(--dim); }
+.k { display: inline-block; width: 14px; height: 3px; margin: 0 0.3rem 2px 0.7rem; vertical-align: middle; } .k:first-child { margin-left: 0; }
+.k.act { background: #1c1510; } .k.mod { background: var(--ember); } .k.base { background: #9a8d7a; }
+details.ds-quick { margin-top: 0.8rem; } details.ds-quick > summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; color: var(--ember); }
+details.ds-quick .ds-quick-head { margin-top: 0.6rem; }
+@media (max-width: 640px) { .ds-actions { flex-direction: row; justify-self: start; } .ds-metrics > div { grid-template-columns: 6rem minmax(0, 1fr) 3.6rem; } }
+
+/* the region: a map you can wipe between "satellites only" and "satellites plus model" */
+.rg-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin: 0.4rem 0 0.8rem; align-items: end; }
+.rg-pick .seg { grid-column: 1 / -1; margin: 0; }
+.rg-ba { position: relative; width: 100%; border-radius: 14px; overflow: hidden; background: rgb(14, 11, 9); touch-action: pan-y; cursor: ew-resize; user-select: none; -webkit-user-select: none; min-height: 160px; }
+.rg-ba canvas { display: block; width: 100%; }
+.rg-ba .lab { position: absolute; top: 0.5rem; padding: 0.2rem 0.6rem; border-radius: 99px; font: 700 0.66rem var(--sans); letter-spacing: 0.06em; text-transform: uppercase; background: rgba(10, 9, 8, 0.74); color: #f3ead9; pointer-events: none; }
+.rg-ba .lab.l { left: 0.5rem; } .rg-ba .lab.r { right: 0.5rem; }
+.rg-handle { position: absolute; top: 0; bottom: 0; width: 30px; margin-left: -15px; padding: 0; border: 0; background: transparent; cursor: ew-resize; }
+.rg-handle i { position: absolute; left: 14px; top: 0; bottom: 0; width: 2px; background: #f3ead9; box-shadow: 0 0 10px rgba(0, 0, 0, 0.6); }
+.rg-handle::after { content: "⇄"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #f3ead9; color: #1c1510; font-size: 0.9rem; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+.rg-handle:focus-visible::after { outline: 2px solid var(--sun); outline-offset: 2px; }
+.rg-tip { position: absolute; z-index: 3; pointer-events: none; padding: 0.35rem 0.6rem; border-radius: 10px; background: rgba(10, 9, 8, 0.92); color: #f3ead9; font: 600 0.78rem var(--sans); white-space: nowrap; }
+.rg-tip small { display: block; font-weight: 500; font-size: 0.68rem; opacity: 0.75; }
+.rg-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 0.6rem 0.8rem; margin: 0.9rem 0 0.5rem; }
+.rg-stats > div { border-top: 1px solid var(--line); padding-top: 0.5rem; }
+.rg-stats b { display: block; font: 200 1.55rem/1.1 var(--sans); letter-spacing: -0.02em; }
+.rg-stats span { display: block; margin-top: 0.15rem; font-size: 0.78rem; line-height: 1.35; color: var(--dim); }
+.rg-stats .after b { color: var(--ember); }
+.region .btn { margin-top: 0.4rem; }
+
+/* inside a country: the Train button and its chart */
+.dl .btn.train { background: var(--ember); color: #1c0c03; border-color: var(--ember); }
+.sh-train { margin: 0.4rem 0 0.8rem; }
+.sh-train .ds-prog { background: rgba(255, 255, 255, 0.15); } .sh-train .ds-prog span { color: #fff; }
+.gcard .ds-fig .act { stroke: #fff; } .gcard .ds-fig .pt { fill: #fff; } .gcard .ds-fig .base { stroke: #b9ab97; } .gcard .ds-fig text { fill: #d8cdbb; } .gcard .ds-fig .grid { stroke: rgba(255, 255, 255, 0.14); }
+.gcard .k.act { background: #fff; } .gcard .ds-fig figcaption { color: #d8cdbb; } .gcard .ds-verdict.warn { color: #ffb08a; } .gcard .ds-fact { color: #fff; }

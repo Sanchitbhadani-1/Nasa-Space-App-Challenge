@@ -240,18 +240,41 @@
       </details>
       <div class="tool-out" id="wk-out" hidden></div>
     </div>
+  </div>
+</section>
+
+<!-- 10: train a model on the record, and see a region before and after -->
+<section id="train" class="scene split">
+  <div class="col">
     <div class="card tool" id="ds">
       <p class="eyebrow"><b>08</b> Use it · Train your own model</p>
-      <h2>Six small datasets, ready to train on.</h2>
-      <p>Cut from the same harmonized record this site shows, so you can try a model in minutes instead of rebuilding 25 years of NASA detections first. Plain CSV, documented, and nothing in them is simulated.</p>
+      <h2>Train a model on the record, right here.</h2>
+      <p>Press Train. The data is fetched and a real model is fitted in your browser (nothing is uploaded), then scored on months, cells or countries it never saw, next to an honest baseline. The grid model also draws the region on the right.</p>
       <ul class="ds-list" id="ds-list"><li class="tiny">Loading the list…</li></ul>
-      <div class="ds-quick" id="ds-quick" hidden>
+      <details class="ds-quick"><summary>Rather use Python?</summary>
         <div class="ds-quick-head"><b>Five-second start</b><button type="button" class="btn ghost" id="ds-copy">Copy code</button></div>
-        <pre id="ds-code"></pre>
-      </div>
+        <pre id="ds-code"></pre></details>
       <p class="tiny" id="ds-note"></p>
     </div>
   </div>
+  <aside class="card region" id="region" aria-label="A region, before and after">
+    <p class="eyebrow"><b>08</b> Your region · satellites alone, then satellites plus a model</p>
+    <h2>See what the model does to a country.</h2>
+    <div class="rg-pick">
+      <label>Country<select id="rg-country"></select></label>
+      <label>Month<select id="rg-month"></select></label>
+      <div class="seg" id="rg-unit" role="group" aria-label="Unit"><button type="button" data-u="cell" class="on">Per cell</button><button type="button" data-u="area">Per 1,000 km²</button></div>
+    </div>
+    <div class="rg-ba" id="rg-ba">
+      <canvas id="rg-canvas" role="img" aria-label="Map of the chosen country as 0.5 degree cells. Left of the handle: satellites only. Right: satellites plus the trained model."></canvas>
+      <span class="lab l">Satellites only</span><span class="lab r">Satellites + model</span>
+      <button type="button" class="rg-handle" id="rg-handle" role="slider" aria-label="Drag to compare before and after" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><i></i></button>
+      <div class="rg-tip" id="rg-tip" hidden></div>
+    </div>
+    <div class="rg-stats" id="rg-stats"></div>
+    <p class="tiny" id="rg-note"></p>
+    <button type="button" class="btn" id="rg-train">Train the world-grid model</button>
+  </aside>
 </section>
 
 </main>
@@ -262,7 +285,7 @@
   <a href="#cameras" data-for="cameras" data-scenes="cameras clock drift" title="The problem, in three parts"><i class="pip" aria-hidden="true"></i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 12 17 6.5M12 6v1.5M18 12h-1.5M6 12h1.5"/></svg><span class="lab">Problem</span></a>
   <a href="#swath" data-for="swath" data-scenes="swath" title="The method"><i class="pip" aria-hidden="true"></i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17c4-9 14-9 18 0M3 17h18"/><circle cx="8" cy="12" r="1.2"/><circle cx="16" cy="12" r="1.2"/></svg><span class="lab">Method</span></a>
   <a href="#evidence" data-for="evidence" data-scenes="evidence trend continuity" title="Does it work, and what fire did"><i class="pip" aria-hidden="true"></i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg><span class="lab">Evidence</span></a>
-  <a href="#tools" data-for="tools" data-scenes="tools" title="Use it on your own data"><i class="pip" aria-hidden="true"></i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span class="lab">Use it</span></a>
+  <a href="#tools" data-for="tools" data-scenes="tools train" title="Use it on your own data"><i class="pip" aria-hidden="true"></i><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span class="lab">Use it</span></a>
 </nav>
 
 <div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="sheet-name">

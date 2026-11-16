@@ -63,3 +63,14 @@ def test_rebuild_is_deterministic():
     before = {p.name: hashlib.md5(p.read_bytes()).hexdigest() for p in EX.glob("*.csv")}
     subprocess.run([sys.executable, str(ROOT / "frontend" / "tools" / "build_examples.py")], check=True, capture_output=True)
     assert before == {p.name: hashlib.md5(p.read_bytes()).hexdigest() for p in EX.glob("*.csv")}
+
+
+# Check the grid's lon and lat columns are the right way round: climo.json stores cells as [lat, lon, ...], and Angola's cells must land in Angola
+def test_grid_longitude_and_latitude_are_not_swapped():
+    g = rows("grid_seasonal.csv")
+    assert all(-180 <= float(r["lon"]) <= 180 and -90 <= float(r["lat"]) <= 90 for r in g)
+    meta = json.loads((ROOT / "frontend" / "data" / "meta.json").read_text())
+    w, s, e, n = next(c for c in meta["countries"] if c["id"] == "Angola")["bbox"]
+    inside = [r for r in g if w <= float(r["lon"]) <= e and s <= float(r["lat"]) <= n]
+    assert len(inside) > 150                                  # Angola is roughly 400 half-degree cells; at least a third carry fire
+    assert max(float(r["lat"]) for r in g) > 60 and min(float(r["lon"]) for r in g) < -120    # the world is wider than it is tall
