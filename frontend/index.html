@@ -139,8 +139,8 @@
     </div>
     <div class="card steps">
       <ol>
-        <li><b>Convert the camera.</b> From 2012 to 2019 both sensors fly and the drift has not started. Fit <i>k</i>, "for every fire MODIS saw, VIIRS saw <i>k</i>", per country, season and day or night.</li>
-        <li><b>Measure the clock.</b> Take the swath slope <i>b</i>, so the correction follows each satellite's drifting pass time.</li>
+        <li><b>Convert the camera.</b> From 2012 to 2019 both sensors fly and the drift has not started. Fit <i>k</i>, "for every fire MODIS saw, VIIRS saw <i>k</i>", per country, season and day or night. For the years before VIIRS, a machine learning model (boosted decision trees) refines <i>k</i> month by month from the country, the season, fire sizes and viewing angle. On years it never saw, it cut the typical monthly error from 20% to 17%.</li>
+        <li><b>Measure the clock.</b> Take the swath slope <i>b</i>, so the correction follows each satellite's drifting pass time. Fires do not grow in a straight line: they build until about 3 pm, then fade. So the record bends the correction into a curve that peaks at 3 pm, shaped to match the gap between Terra's and Aqua's own counts (still no VIIRS). Countries with too little data for the curve keep the straight line.</li>
         <li><b>Apply it month by month.</b> Undo the shift back to the old 10:30 pass, then convert to VIIRS units.</li>
       </ol>
       <p class="formula" aria-label="n harmonized equals k times n Terra times e to the minus b times h minus 10.5">
@@ -155,7 +155,7 @@
           <label>Slope b (per hr)<input id="c-b" type="number" value="0.28" min="0" max="1" step="0.01"></label>
         </div>
         <p class="calc-out" aria-live="polite"><span id="c-mult">×1.26</span> time correction · <span id="c-res">≈ 9,600</span> VIIRS-equivalent fires</p>
-        <p class="tiny">Round, made-up numbers for illustration. The real <i>k</i> and <i>b</i> are fitted per country.</p>
+        <p class="tiny">Round, made-up numbers for illustration. The real <i>k</i> and <i>b</i> are fitted per country, and the record uses the curved version of this correction.</p>
       </form>
     </div>
   </div>
