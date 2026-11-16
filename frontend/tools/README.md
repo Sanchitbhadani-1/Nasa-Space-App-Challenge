@@ -1,6 +1,6 @@
 # tools
 
-- `export_static.py`: turns the team's precomputed record into static JSON in `data/`, so the site runs on GitHub Pages with no server.
+- `export_static.py`: turns the team's precomputed record into static JSON in `data/`, so the site runs on any static host with no server.
   Run from the repo root with the venv active: `python frontend/tools/export_static.py frontend/data`. It reads `backend/main.py`, so it only writes the countries that `data/` holds; the site's committed 182-country files came from a full run.
 - `build_trends.js`: run after `export_static.py` (`node tools/build_trends.js` from the sundial folder). Fits the 2001 to 2025 fire trend on the glued and the harmonized record for every country (shared logic in `js/trend.js`) and writes `data/trends.json`, which colours the globe in the "What fire actually did" section. Re-run it whenever the series files change.
 - `build_continuity.js`: run after `export_static.py` (`node tools/build_continuity.js`). Cross-calibrates NOAA-20 against Suomi NPP per country (logic in `js/continuity.js`) and writes `data/continuity.json`: the factor that carries the record once Suomi NPP is gone, with its error on held-out years.

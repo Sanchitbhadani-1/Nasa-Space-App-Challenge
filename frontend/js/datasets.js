@@ -10,7 +10,6 @@
   const mb = (b) => (b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB');
   const MONF = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const TASK_OF = { 'forecast_features.csv': 'forecast', 'country_month_panel.csv': 'panel', 'harmonizer_pairs.csv': 'pairs', 'grid_seasonal.csv': 'grid', 'daily_curves.csv': 'curves', 'country_scorecard.csv': 'scorecard' };
-  const REPO = 'https://github.com/Sanchitbhadani-1/Nasa-Space-App-Challenge/blob/main/frontend';
 
   /* ---------- the worker, shared by every Train button on the page ---------- */
   let worker = null, seq = 0; const waiting = new Map();
@@ -114,7 +113,7 @@
     const base = new URL('data/examples/', location.href).href;
     $('#ds-code').textContent = `import pandas as pd\n\nbase = "${base}"\ndf = pd.read_csv(base + "forecast_features.csv")\ntrain, valid, test = (df[df.split == s] for s in ("train", "valid", "test"))\nprint(len(train), len(valid), len(test))   # time-ordered split, no shuffling needed`;
     $('#ds-copy').addEventListener('click', async (e) => { const b = e.currentTarget; try { await navigator.clipboard.writeText($('#ds-code').textContent); b.textContent = 'Copied'; } catch (err) { b.textContent = 'Select to copy'; } setTimeout(() => { b.textContent = 'Copy code'; }, 1800); });
-    $('#ds-note').insertAdjacentHTML('beforeend', `${canTrain ? '' : ' '}Counts are VIIRS-equivalent detections per month, ${String(m.first_month).slice(0, 4)} to ${String(m.last_month).slice(0, 4)}, ${m.countries} countries. Source: NASA FIRMS. <a href="${REPO}/data/examples/README.md" target="_blank" rel="noopener">Column guide</a> · <a href="${REPO}/data/examples/train_baseline.py" target="_blank" rel="noopener">the same idea in Python</a>.`);
+    $('#ds-note').insertAdjacentHTML('beforeend', `${canTrain ? '' : ' '}Counts are VIIRS-equivalent detections per month, ${String(m.first_month).slice(0, 4)} to ${String(m.last_month).slice(0, 4)}, ${m.countries} countries. Source: NASA FIRMS. <a href="data/examples/README.md" target="_blank" rel="noopener">Column guide</a> · <a href="data/examples/train_baseline.py" target="_blank" rel="noopener">the same idea in Python</a>.`);
   }).catch(() => { list.innerHTML = '<li class="tiny">The dataset list needs the page to be served over http(s), not opened as a file.</li>'; });
 
   /* ---------- the region: satellites only, and satellites plus the trained model ---------- */

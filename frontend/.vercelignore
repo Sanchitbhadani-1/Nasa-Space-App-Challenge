@@ -1,0 +1,2 @@
+# Not needed to run the site: build tools stay out of the deployed copy
+tools/
