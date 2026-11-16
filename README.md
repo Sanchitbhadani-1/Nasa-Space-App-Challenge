@@ -12,7 +12,9 @@ can be compared year to year, serves it through an API, and shows it on a websit
 | `data/` | What the pipeline writes and the API reads: borders, calibration, harmonized record, daily curves, grid. |
 | `backend/` | The FastAPI app (`backend/main.py`). Serves `/api/...`, a few map files from `data/`, and the website at `/`. |
 | `frontend/` | The website (HTML, JS, JSON). Static, so it also runs on any static host with no server. Has its own data in `frontend/data/`. |
-| `tests/` | `pytest` tests for the API, the website being served, and FIRMS boxes that cross the 180 degree line. |
+| `tests/` | `pytest` tests for the API, the website being served, and FIRMS boxes that cross the 180 degree line. `tests/js/` holds the Node tests for the regional explorer. |
+| `AI_USE.md` | Where and how AI tools were used, as the Space Apps rules require. |
+| `Dockerfile`, `render.yaml` | Optional: deploy the API plus website as one web service (for example on Render). |
 | `run_pipeline.sh` | Runs the five pipeline steps for the countries you name. |
 
 `data/` and `frontend/data/` are different things. `data/` is the pipeline's output for the countries you ran it on
@@ -58,10 +60,18 @@ node tools/validate_harmonizer.js --write
 `frontend/tools/export_static.py` writes the website's series, climatology and metadata from `backend/main.py`. It only
 writes the countries that `data/` holds, so the committed 182-country files came from a full pipeline run.
 
+## Regional fire-season explorer
+
+On any country sheet, draw a rectangle on the map or type coordinates to see that area's typical burning months from the
+published 0.5 degree grid. Share links keep the box: `#place=Angola&m=202512&box=12,-12,20,-6`. `GET /api/region?bbox=w,s,e,n`
+validates the box and says plainly that per-box monthly history is not loaded yet; the page then shows the seasonal average
+only and never estimates a region from country totals.
+
 ## Tests
 
 ```bash
 python -m pytest -q
+node --test tests/js/*.cjs
 ```
 
 Data from NASA FIRMS. Not affiliated with or endorsed by NASA. AI helped write parts of the code; the analysis and the
