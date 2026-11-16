@@ -13,7 +13,6 @@ can be compared year to year, serves it through an API, and shows it on a websit
 | `backend/` | The FastAPI app (`backend/main.py`). Serves `/api/...`, a few map files from `data/`, and the website at `/`. |
 | `frontend/` | The website (HTML, JS, JSON). Static, so it also runs on any static host with no server. Has its own data in `frontend/data/`. |
 | `tests/` | `pytest` tests for the API, the website being served, and FIRMS boxes that cross the 180 degree line. `tests/js/` holds the Node tests for the regional explorer. |
-| `AI_USE.md` | Where and how AI tools were used, as the Space Apps rules require. |
 | `Dockerfile`, `render.yaml` | Optional: deploy the API plus website as one web service (for example on Render). |
 | `run_pipeline.sh` | Runs the five pipeline steps for the countries you name. |
 
