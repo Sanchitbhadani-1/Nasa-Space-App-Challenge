@@ -63,7 +63,7 @@ writes the countries that `data/` holds, so the committed 182-country files came
 
 `frontend/data/examples/` holds six small CSVs cut from the harmonized record (a country-month panel, a ready-made next-month
 forecast table, MODIS-to-VIIRS pairs, a seasonal world grid, daily curves and a country scorecard), plus a column guide and a
-five-second baseline: `python frontend/data/examples/train_baseline.py`. The website lists them under "Use it". Rebuild them
+five-second baseline: `python frontend/data/examples/train_baseline.py`. The website lists them under "Use it" with a Train button on each: it fetches the CSV and fits a real model in a Web Worker in the visitor's browser (`frontend/js/trainer.worker.js`: histogram gradient-boosted trees, ridge regression, and a neighbours model), scored on held-out data next to honest baselines. The world-grid model also draws a before/after of any country: the grid as the satellites published it, against the grid with gaps filled and noisy cells smoothed. Inside a country, "Train a forecast model" charts the forecast against that country's real months. Rebuild them
 with `python frontend/tools/build_examples.py` (standard library only, identical bytes every run; `tests/test_examples.py`
 checks that, and that the forecast features never use the future).
 

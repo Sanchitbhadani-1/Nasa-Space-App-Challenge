@@ -141,7 +141,7 @@ def main():
     head = ["lon", "lat"] + mnames + ["annual_mean", "peak_month"]
 
     def grid():
-        for lon, lat, v in sorted(cl["cells"], key=lambda r: (r[1], r[0])):
+        for lat, lon, v in sorted(cl["cells"], key=lambda r: (r[0], r[1])):      # climo.json stores each cell as [lat, lon, twelve monthly means]
             mx = max(v)
             yield [lon, lat] + list(v) + [sum(v) / 12, v.index(mx) + 1 if mx > 0 else ""]
     n, b = write("grid_seasonal.csv", head, grid())

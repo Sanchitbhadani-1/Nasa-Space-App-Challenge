@@ -46,7 +46,8 @@
     evidence: { layout: 'story', away: true, awayDir: 1, lon: 60, lat: 6, k: 1.0, month: 9, ring: 0, pins: [], bg: 'ink', theme: 'ink', side: 'center' },
     trend: { layout: 'story', form: 'flat', lon: 12, lat: 14, month: 9, ring: 0, trend: true, pins: [], bg: 'paper', side: 'left' },   // every country painted by trend direction, on a flat map
     continuity: { layout: 'story', at: [0.26, 0.5], lon: 30, lat: 12, k: 0.92, ring: 0.5, bands: ['viirs'], month: 9, pins: [], bg: 'dusk', side: 'right' },
-    tools: { layout: 'story', away: true, awayDir: -1, lon: -10, lat: 8, k: 1.0, month: 9, ring: 0, pins: [], bg: 'ink', theme: 'ink', side: 'center' }
+    tools: { layout: 'story', away: true, awayDir: -1, lon: -10, lat: 8, k: 1.0, month: 9, ring: 0, pins: [], bg: 'ink', theme: 'ink', side: 'center' },
+    train: { layout: 'story', away: true, awayDir: -1, lon: -10, lat: 8, k: 1.0, month: 9, ring: 0, pins: [], bg: 'ink', theme: 'ink', side: 'left' }
   };
   const SCENE_BG = { paper: [243, 234, 217], sun: [249, 226, 192], sand: [237, 225, 200], stone: [226, 229, 222], dusk: [221, 229, 240], ink: [17, 14, 12] };
   G.setBandInfo((id) => {
@@ -135,13 +136,26 @@
     ectx.globalCompositeOperation = 'source-over';
   }
 
+  /* ============ the hint: a bubble out of the earth, once the title has gone, that fades as the page covers the globe ============ */
+  const hintEl = $('#hint'); let hintH = 0, hintOp = -1;
+  const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  function hintFrame() {
+    const H = innerHeight, W = innerWidth, p = clamp(scrollY / (H * 0.85), 0, 1), introTop = intro.getBoundingClientRect().top;
+    const o = st.sheetOpen || document.body.classList.contains('loading') ? 0 : smooth(0.58, 0.74, p) * (1 - clamp((H * 0.52 - introTop) / (H * 0.2), 0, 1))   // in after the title is gone, and held until the page reaches the top of the globe;
+    if (o <= 0.01) { if (hintOp !== 0) { hintEl.style.opacity = 0; hintOp = 0; } return; }
+    const V = G.V, R = V.R, w = hintEl.offsetWidth; hintH = hintH || hintEl.offsetHeight;
+    const x = clamp(V.cx + R * 0.18 - 16, 10, W - w - 10), y = V.cy - R * 0.6 - hintH - 10;
+    hintEl.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`; hintEl.style.setProperty('--tail', clamp(V.cx + R * 0.18 - x, 14, w - 24).toFixed(0) + 'px');
+    hintEl.style.opacity = o.toFixed(3); hintOp = o;
+  }
+
   /* ============ frame loop for things that are not the globe ============ */
   let fAt = 0;
   function frame(now) {
     requestAnimationFrame(frame);
     if (document.hidden || now - fAt < 33) return;   // 30 fps is plenty for slow colour drifts
     fAt = now;
-    skyFrame(); embersFrame(now);
+    skyFrame(); embersFrame(now); hintFrame();
   }
 
   /* ============ scroll ============ */
@@ -197,7 +211,8 @@
       setYear(2000 + clamp((H * 0.35 - r.top) / (r.height - H * 0.6), 0, 1) * 26.8);
     }
   }
-  addEventListener('scroll', onScroll, { passive: true });
+  let scrollTick = false;
+  addEventListener('scroll', () => { if (!scrollTick) { scrollTick = true; requestAnimationFrame(() => { scrollTick = false; onScroll(); }); } }, { passive: true });
 
   /* ---- eased scrolling: one smooth glide whatever the distance, and any wheel, touch or key stops it ---- */
   document.documentElement.classList.add('js-scroll');   // turns off the browser's own smooth scrolling, which fights this one
@@ -685,8 +700,9 @@
   ${TIER[sh.c.tier] ? `<p class="note"><b>${TIER[sh.c.tier][0]}.</b> ${TIER[sh.c.tier][1]}</p>` : ''}
   ${DATA.cont && DATA.cont.rows[sh.id] ? `<p class="note"><b>After Suomi NPP:</b> NOAA-20 × ${DATA.cont.rows[sh.id].c.toFixed(3)} stands in for it here${DATA.cont.rows[sh.id].ho == null ? '' : ` (held-out yearly error ${DATA.cont.rows[sh.id].ho.toFixed(1)}%)`}.</p>` : ''}
   ${worse ? `<p class="note"><b>Here the fix made things worse.</b> ${sh.id === 'India' ? 'Punjab crop burning moved later in the day, which breaks the method’s assumption.' : 'We show this on purpose.'}</p>` : ''}`}</section>
-<section class="gcard span2"><h3 class="gh">${ICON.down} Download</h3><div class="dl"><button type="button" class="btn" id="dl-csv">Monthly table (CSV)</button><a class="btn ghost" href="https://firms.modaps.eosdis.nasa.gov/download/" target="_blank" rel="noopener">NASA FIRMS raw archive ↗</a><button type="button" class="btn ghost" id="dl-link">Copy link to this view</button></div>
-  <p class="note">One row per month: harmonized count with the supplied 95% band, anomaly score, raw counts per satellite, uncorrected and drift-corrected MODIS, pass times and fire power. See the uncertainty limitations below.</p><p class="toast" id="toast" role="status" aria-live="polite"></p></section>
+<section class="gcard span2"><h3 class="gh">${ICON.down} Train a model on ${cname(sh.c)}</h3><div class="dl"><button type="button" class="btn train" id="dl-train">Train a forecast model</button><button type="button" class="btn ghost" id="dl-csv">Monthly table (CSV)</button><a class="btn ghost" href="https://firms.modaps.eosdis.nasa.gov/download/" target="_blank" rel="noopener">NASA FIRMS raw archive ↗</a><button type="button" class="btn ghost" id="dl-link">Copy link to this view</button></div>
+  <div class="sh-train" id="sh-train" aria-live="polite"></div>
+  <p class="note">Train fetches the forecast dataset and fits a model in your browser, then shows it against ${cname(sh.c)}'s real months. Nothing is uploaded. The CSV has one row per month: harmonized count with the supplied 95% band, anomaly score, raw counts per satellite, uncorrected and drift-corrected MODIS, pass times and fire power. See the uncertainty limitations below.</p><p class="toast" id="toast" role="status" aria-live="polite"></p></section>
 <section class="gcard span2" id="sheet-methodology" tabindex="-1"><details><summary>Sources, methodology &amp; limitations</summary><div class="sources-content"></div></details></section>`;
     $('#sheet-methodology .sources-content').append($('#sources-template').content.cloneNode(true));
     populateSources($('#sheet-methodology'));
@@ -698,6 +714,7 @@
     $('#anoms').addEventListener('click', (e) => { const b = e.target.closest('button[data-i]'); if (b) { selectIdx(+b.dataset.i); } });
     $$('.seg button', cardsEl).forEach((b) => b.addEventListener('click', () => { sh.mode = b.dataset.m; $$('.seg button', cardsEl).forEach((x) => x.classList.toggle('on', x === b)); drawBA(); }));
     $('#dl-csv').addEventListener('click', downloadCSV);
+    $('#dl-train').addEventListener('click', () => { if (window.TRAIN && window.TRAIN.available) window.TRAIN.forecastInto($('#sh-train'), sh.id, $('#dl-train')); else toast('Training needs the page served over http(s), in a browser with Web Workers.'); });
     $('#dl-link').addEventListener('click', async () => { try { await navigator.clipboard.writeText(location.href); toast('Link copied. It saves the country and month.'); } catch (e) { toast('Copy failed. The address bar holds the link.'); } });
     buildCalendar(); drawOrbit(); drawBA(); drawRhythm(); drawTrend();
   }
