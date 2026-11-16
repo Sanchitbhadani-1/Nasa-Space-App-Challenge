@@ -631,3 +631,12 @@ nav.dock a { padding: 0.36rem; }
 nav.dock:hover, nav.dock:focus-within, nav.dock.peek { transform: none; translate: 0 -2px; opacity: 1; gap: 0.2rem; padding: 0.35rem; background: rgba(24, 18, 14, 0.92); box-shadow: 0 10px 34px rgba(0, 0, 0, 0.28); }
 body.loading nav.dock, body.sheet-open nav.dock, body.on-hero nav.dock { transform: none; translate: 0 160%; opacity: 0; }
 
+
+/* ---------- the title leaves after the first scroll; a bubble from the earth tells people what to do ---------- */
+body:not(.loading) #title { transition: opacity 0.35s; }
+.hint { position: fixed; left: 0; top: 0; z-index: 29; pointer-events: none; opacity: 0; max-width: 17rem; padding: 0.85rem 1.2rem 0.9rem; border-radius: 20px; background: var(--paper); color: var(--paperInk);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4); font: 600 1.1rem/1.25 var(--sans); will-change: transform, opacity; }
+.hint b { display: block; font-weight: 700; }
+.hint small { display: block; margin-top: 0.15rem; font-weight: 500; font-size: 0.86rem; color: #6a5c4e; }
+.hint::after { content: ""; position: absolute; left: var(--tail, 22px); bottom: -9px; width: 18px; height: 18px; background: var(--paper); transform: translateX(-50%) rotate(45deg); border-radius: 0 0 4px 0; }
+.hint::before { content: ""; position: absolute; left: 0.7rem; top: -5px; width: 10px; height: 10px; border-radius: 50%; background: var(--ember); box-shadow: 0 0 0 4px rgba(255, 106, 26, 0.25); }
