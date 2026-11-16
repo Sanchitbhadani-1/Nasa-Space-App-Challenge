@@ -255,6 +255,19 @@ def get_series(area: str = Query(..., description="country:X | state:ID | bbox:w
     return series(area)
 
 
+# Regional monthly history for a drawn box. The pipeline's data/ folder has no per-box monthly record yet, so this says so
+# plainly and the website falls back to the seasonal average. It never estimates a region from country totals.
+@app.get("/api/region")
+def region(bbox: str = Query(..., description="w,s,e,n")):
+    try:
+        w, s_, e, n = (float(v) for v in bbox.split(","))
+    except ValueError:
+        raise HTTPException(400, "bbox must be four numbers: w,s,e,n")
+    if not (-180 <= w < e <= 180 and -90 <= s_ < n <= 90):
+        raise HTTPException(400, "need west < east within +-180 and south < north within +-90")
+    return {"history": None, "reason": "regional_observations_not_loaded"}
+
+
 # Every state's count and anomaly score for one month
 @app.get("/api/anomaly-map")
 def anomaly_map(ym: int):
